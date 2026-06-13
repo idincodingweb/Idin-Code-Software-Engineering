@@ -1,90 +1,60 @@
 targets:
-  # NICHE 1: DENTAL IMPLANTS - Schedule Consultation (Premium Clinics - US Market)
-  
-  # NEW YORK CITY
-  - domain: nyimplantclinic.com
-    location: New York City
-    niche: dental_implants
-    category: premium_clinic
-  - domain: sohodentalgroup.com
-    location: New York City (SoHo)
-    niche: dental_implants
-    category: premium_clinic
-  - domain: nydentalimplants.com
-    location: New York (Canandaigua/Rochester)
-    niche: dental_implants
-    category: premium_clinic
-  - domain: dntlbar.com
-    location: New York City (Chelsea)
-    niche: dental_implants
-    category: premium_clinic
-  - domain: chosenimplantstudio.com
-    location: New York City (Midtown East)
-    niche: dental_implants
-    category: premium_clinic
-  - domain: luxurydentistrynyc.com
-    location: New York City (Upper East Side)
-    niche: dental_implants
-    category: luxury_clinic
-  
-  # LOS ANGELES / BEVERLY HILLS
-  - domain: lyons.dental
+  # TIER 1: MULTI-LOCATION PLASTIC SURGERY GROUPS
+  - domain: lipsg.com
+    location: New York (13 lokasi: Manhattan, Brooklyn, Long Island, CT, NJ)
+    niche: plastic_surgery
+    category: large_practice
+  - domain: greenbergcosmeticsurgery.com
+    location: New York (NYC, Long Island) + New Jersey + Florida (Boca Raton)
+    niche: plastic_surgery
+    category: luxury_practice
+  - domain: doctorsplasticsurgery.com
+    location: New York (Manhattan, Long Island, New Jersey)
+    niche: plastic_surgery
+    category: large_practice
+  - domain: premierplasticsurgerypa.com
+    location: Pittsburgh (Wexford + Upper St Clair)
+    niche: plastic_surgery
+    category: large_practice
+  - domain: northtexasplasticsurgery.com
+    location: Dallas/Plano/Southlake/Fort Worth, TX
+    niche: plastic_surgery
+    category: premium_practice
+
+    # TIER 2: PREMIUM SINGLE-LOCATION
+  - domain: mdface.com
+    location: New York City (Park Avenue, Manhattan)
+    niche: plastic_surgery
+    category: luxury_practice
+  - domain: premiercosmeticla.com
     location: Los Angeles
-    niche: dental_implants
-    category: premium_clinic
-  - domain: dentalimplantscenterbeverlyhills.com
-    location: Beverly Hills
-    niche: dental_implants
-    category: luxury_clinic
-  - domain: beverlyhillscosmeticdentist.com
-    location: Beverly Hills
-    niche: dental_implants
-    category: luxury_clinic
-  - domain: beverlyhillsimplants.com
-    location: Beverly Hills
-    niche: dental_implants
-    category: premium_clinic
-  
-  # CHICAGO
-  - domain: chicagodentalsolutions.com
-    location: Chicago
-    niche: dental_implants
-    category: premium_clinic
-  - domain: windycityfamilydental.com
-    location: Chicago
-    niche: dental_implants
-    category: premium_clinic
-  
-  # HOUSTON
-  - domain: bestdentalimplantshouston.com
-    location: Houston
-    niche: dental_implants
-    category: premium_clinic
-  - domain: implantdentalcenter.com
-    location: Houston
-    niche: dental_implants
-    category: premium_clinic
-  - domain: newmedental.com
-    location: Houston
-    niche: dental_implants
-    category: premium_clinic
-  
-  # DALLAS
-  - domain: superiorsmiles.net
-    location: Dallas
-    niche: dental_implants
-    category: premium_clinic
-  - domain: dallasdentistryanddentalimplants.com
-    location: Lewisville/Dallas
-    niche: dental_implants
-    category: premium_clinic
-  
-  # MIAMI / FLORIDA
-  - domain: joinislanddental.com
-    location: Hallandale Beach/Miami
-    niche: dental_implants
-    category: premium_clinic
-  - domain: summitdentalmiami.com
+    niche: plastic_surgery
+    category: premium_practice
+  - domain: miamiplasticsurgery.com
     location: Miami
-    niche: dental_implants
-    category: premium_clinic
+    niche: plastic_surgery
+    category: premium_practice
+  - domain: thepracticehealthcare.com
+    location: Beverly Hills
+    niche: plastic_surgery
+    category: luxury_practice
+  - domain: bodycosmeticsofbeverlyhills.com
+    location: Beverly Hills
+    niche: plastic_surgery
+    category: luxury_practice
+  - domain: bhips.com
+    location: Beverly Hills + Inland Empire
+    niche: plastic_surgery
+    category: premium_practice
+  - domain: cgcosmetic.com
+    location: Coral Gables/Miami
+    niche: plastic_surgery
+    category: premium_practice
+  - domain: zuriplasticsurgery.com
+    location: South Miami
+    niche: plastic_surgery
+    category: premium_practice
+  - domain: alluringplasticsurgery.com
+    location: Miami
+    niche: plastic_surgery
+    category: premium_practice
