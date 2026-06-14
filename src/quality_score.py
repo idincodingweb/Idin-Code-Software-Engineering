@@ -1,8 +1,8 @@
 # src/quality_score.py
 """Lead Quality Score 0-100.
 
-Sekarang scoring bersifat config-driven per niche.
-Kalau niche config tidak ada, otomatis fallback ke `default.yaml`.
+Config-driven per niche via YAML.
+Kalau niche config tidak ada, otomatis fallback ke default.yaml.
 """
 from __future__ import annotations
 
@@ -11,17 +11,13 @@ from typing import Any
 from src.config.niche_loader import load_niche_config
 
 
-def sanitize_ai_quality_score(value: Any) -> int | None:
-    """Normalize AI-provided score into int 0-100."""
-    if value is None:
-        return None
-
+def _to_number(value: Any) -> float | None:
     try:
-        score = int(round(float(value)))
+        if value is None or value == "":
+            return None
+        return float(value)
     except (TypeError, ValueError):
         return None
-
-    return max(0, min(100, score))
 
 
 def _missing_tracking_count(lead: Any) -> int:
@@ -39,30 +35,13 @@ def _missing_tracking_count(lead: Any) -> int:
     return count
 
 
-def _social_count(lead: Any) -> int:
-    return len(getattr(lead, "social_profiles", []) or [])
-
-
-def _email_count(lead: Any) -> int:
-    return len(getattr(lead, "emails_found", []) or [])
-
-
-def _to_number(value: Any) -> float | None:
-    try:
-        if value is None or value == "":
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _field_value(lead: Any, field: str) -> Any:
     if field == "missing_tracking_count":
         return _missing_tracking_count(lead)
     if field == "social_profiles_count":
-        return _social_count(lead)
+        return len(getattr(lead, "social_profiles", []) or [])
     if field == "emails_found_count":
-        return _email_count(lead)
+        return len(getattr(lead, "emails_found", []) or [])
     return getattr(lead, field, None)
 
 
@@ -82,6 +61,16 @@ def _matches_condition(lead: Any, condition: dict[str, Any]) -> bool:
     if op == "not_in":
         values = expected if isinstance(expected, list) else [expected]
         return actual not in values
+    if op == "contains":
+        if isinstance(actual, list):
+            return expected in actual
+        if isinstance(actual, str):
+            return str(expected).lower() in actual.lower()
+        return False
+    if op == "truthy":
+        return bool(actual)
+    if op == "falsy":
+        return not bool(actual)
 
     actual_num = _to_number(actual)
     expected_num = _to_number(expected)
@@ -95,18 +84,6 @@ def _matches_condition(lead: Any, condition: dict[str, Any]) -> bool:
     if op == "lt":
         return actual_num is not None and expected_num is not None and actual_num < expected_num
 
-    if op == "contains":
-        if isinstance(actual, list):
-            return expected in actual
-        if isinstance(actual, str):
-            return str(expected).lower() in actual.lower()
-        return False
-
-    if op == "truthy":
-        return bool(actual)
-    if op == "falsy":
-        return not bool(actual)
-
     return False
 
 
@@ -114,18 +91,48 @@ def _matches_all(lead: Any, conditions: list[dict[str, Any]]) -> bool:
     return all(_matches_condition(lead, cond) for cond in conditions)
 
 
+def _clamp_int(value: float) -> int:
+    return max(0, min(100, int(round(value))))
+
+
 def compute_quality_score(lead: Any) -> int:
-    """Config-driven deterministic scoring."""
+    """Config-driven deterministic quality score 0..100."""
     niche = getattr(lead, "niche", "default") or "default"
     config = load_niche_config(niche)
     scoring = config["quality_score"]
 
-    score = int(scoring.get("base", 50))
+    score = float(scoring.get("base", 55))
+
+    # Gold score tetap dipakai sebagai anchor utama.
+    base_gold = _to_number(getattr(lead, "score", 0.0)) or 0.0
+    score += base_gold * 25.0
 
     for rule in scoring.get("rules", []):
         conditions = list(rule.get("conditions") or [])
-        points = int(rule.get("points", 0))
+        points = float(rule.get("points", 0))
         if conditions and _matches_all(lead, conditions):
             score += points
 
-    return max(0, min(100, score))
+    return _clamp_int(score)
+
+
+def quality_band(score: int) -> str:
+    if score >= 80:
+        return "A (hot)"
+    if score >= 65:
+        return "B (warm)"
+    if score >= 45:
+        return "C (lukewarm)"
+    return "D (cold)"
+
+
+def sanitize_ai_quality_score(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if num != num:
+        return None
+    return _clamp_int(num)
