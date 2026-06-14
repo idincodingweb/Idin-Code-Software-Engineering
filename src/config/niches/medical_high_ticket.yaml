@@ -1,0 +1,112 @@
+metadata:
+  industry_label: "high-ticket medical and aesthetic clinics"
+  typical_ticket: "$3,000-$30,000 per case"
+  pain_point: "consult-to-book conversion, attribution clarity, and ROAS visibility"
+
+analyst:
+  focus: >
+    Focus on lead capture, consult booking friction, attribution clarity, and speed issues
+    that directly affect expensive patient acquisition funnels.
+  mature_business_note: >
+    If a clinic already has strong tracking coverage, visible ad maturity, and fast pages,
+    lower urgency and frame it as limited opportunity or retention-only.
+
+  fallback_reasons_rules:
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      template: "Missing {missing_tracking_count} key tracking signals ({missing_tracking_items}) - major retargeting and attribution gap for high-CAC patient acquisition."
+
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 1
+        - field: missing_tracking_count
+          op: lt
+          value: 3
+      template: "Missing {missing_tracking_items} - incomplete attribution stack for consult funnel analysis."
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Mobile PageSpeed {pagespeed_score}/100 - high bounce risk before consult intent converts."
+
+    - conditions:
+        - field: response_ms
+          op: gt
+          value: 3000
+      template: "Server response time {response_ms}ms - likely hurting paid traffic efficiency on a high-ticket funnel."
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: true
+      template: "Active Meta ad signal detected - attribution cleanup here could unlock clearer ROAS visibility."
+
+  fallback_outreach_rules:
+    - priority: 1
+      conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 2
+      template: "Subject: Found {missing_tracking_count} tracking gaps on {brand}'s patient funnel"
+
+    - priority: 2
+      conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Subject: {brand}'s mobile funnel may be leaking consult bookings"
+
+quality_score:
+  base: 58
+  rules:
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      points: 14
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      points: 8
+
+    - conditions:
+        - field: response_ms
+          op: gt
+          value: 3000
+      points: 6
+
+    - conditions:
+        - field: emails_found_count
+          op: gte
+          value: 1
+      points: 6
+
+    - conditions:
+        - field: mx_valid
+          op: eq
+          value: true
+      points: 6
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: true
+      points: 10
+
+    - conditions:
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      points: 8
+
+    - conditions:
+        - field: missing_tracking_count
+          op: eq
+          value: 0
+      points: -10
