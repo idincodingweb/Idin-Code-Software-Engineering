@@ -1,35 +1,21 @@
-# src/config.py — pastikan ada:
+# src/config.py
+from __future__ import annotations
+
 import os
+from pathlib import Path
 
-OUTPUT_DIR = "output"
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
-TIER_CONFIGS = [
-    {
-        "filename": "leads_starter.csv",
-        "min_score": 0.50,
-        "limit": 25,
-        "label": "STARTER ($19)",
-    },
-    {
-        "filename": "leads_pro.csv",
-        "min_score": 0.70,
-        "limit": 100,
-        "label": "PRO ($79)",
-    },
-    {
-        "filename": "leads_premium_gold.csv",
-        "min_score": 0.85,
-        "limit": 50,
-        "label": "PREMIUM GOLD ($199)",
-    },
-]
+IDINCODE_API = os.getenv("IDINCODE_API", "").strip()
 
-# kie.ai
-IDINCODE_API = os.getenv("IDINCODE_API", "")
-KIE_AI_BASE_URL = os.getenv("KIE_AI_BASE_URL", "https://api.kie.ai")
-KIE_AI_MESSAGES_PATH = "/claude/v1/messages"
-KIE_AI_MODEL = os.getenv("KIE_AI_MODEL", "claude-sonnet-4-5")
-KIE_AI_THINKING = False
+KIE_AI_BASE_URL = os.getenv("KIE_AI_BASE_URL", "https://api.kie.ai").strip()
+KIE_AI_MESSAGES_PATH = os.getenv("KIE_AI_MESSAGES_PATH", "/api/v1/claude/messages").strip()
+KIE_AI_MODEL = os.getenv("KIE_AI_MODEL", "claude-sonnet-4-20250514").strip()
 
-# PageSpeed
-PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY", "")
+_raw_thinking = os.getenv("KIE_AI_THINKING", "false").strip().lower()
+KIE_AI_THINKING = _raw_thinking in {"1", "true", "yes", "on"}
+
+NICHE_CONFIG_DIR = Path(
+    os.getenv("NICHE_CONFIG_DIR", str(ROOT_DIR / "src" / "config" / "niches"))
+)
+DEFAULT_NICHE_CONFIG = os.getenv("DEFAULT_NICHE_CONFIG", "default").strip() or "default"
