@@ -3,6 +3,10 @@
 
 Config-driven per niche via YAML.
 Kalau niche config tidak ada, otomatis fallback ke default.yaml.
+
+Tambahan:
+- Kurangi trust pada "missing tracking" kalau pixel detection confidence rendah.
+- Kurangi trust pada firmographics kalau confidence rendah.
 """
 from __future__ import annotations
 
@@ -20,6 +24,24 @@ def _to_number(value: Any) -> float | None:
         return None
 
 
+def _pixel_confidence_multiplier(lead: Any) -> float:
+    confidence = str(getattr(lead, "pixel_confidence", "low") or "low").strip().lower()
+    if confidence == "high":
+        return 1.0
+    if confidence == "medium":
+        return 0.65
+    return 0.35
+
+
+def _firmographics_confidence_multiplier(lead: Any) -> float:
+    confidence = str(getattr(lead, "firmographics_confidence", "low") or "low").strip().lower()
+    if confidence == "high":
+        return 1.0
+    if confidence == "medium":
+        return 0.70
+    return 0.40
+
+
 def _missing_tracking_count(lead: Any) -> int:
     count = 0
     if not getattr(lead, "meta_pixel_in_html", False):
@@ -35,13 +57,23 @@ def _missing_tracking_count(lead: Any) -> int:
     return count
 
 
+def _weighted_missing_tracking_count(lead: Any) -> float:
+    return _missing_tracking_count(lead) * _pixel_confidence_multiplier(lead)
+
+
 def _field_value(lead: Any, field: str) -> Any:
     if field == "missing_tracking_count":
         return _missing_tracking_count(lead)
+    if field == "weighted_missing_tracking_count":
+        return _weighted_missing_tracking_count(lead)
     if field == "social_profiles_count":
         return len(getattr(lead, "social_profiles", []) or [])
     if field == "emails_found_count":
         return len(getattr(lead, "emails_found", []) or [])
+    if field == "pixel_confidence_multiplier":
+        return _pixel_confidence_multiplier(lead)
+    if field == "firmographics_confidence_multiplier":
+        return _firmographics_confidence_multiplier(lead)
     return getattr(lead, field, None)
 
 
@@ -95,6 +127,47 @@ def _clamp_int(value: float) -> int:
     return max(0, min(100, int(round(value))))
 
 
+def _rule_multiplier(lead: Any, conditions: list[dict[str, Any]]) -> float:
+    tracked_fields = {str(cond.get("field", "")).strip() for cond in conditions}
+
+    multiplier = 1.0
+    if "missing_tracking_count" in tracked_fields or "weighted_missing_tracking_count" in tracked_fields:
+        multiplier *= _pixel_confidence_multiplier(lead)
+
+    firmographic_fields = {
+        "revenue_tier",
+        "revenue_score",
+        "employee_range",
+        "location_count",
+        "founded_year",
+        "years_in_business",
+        "bi_score",
+    }
+    if tracked_fields & firmographic_fields:
+        multiplier *= _firmographics_confidence_multiplier(lead)
+
+    return multiplier
+
+
+def _confidence_penalties(lead: Any) -> float:
+    penalty = 0.0
+
+    pixel_conf = str(getattr(lead, "pixel_confidence", "low") or "low").strip().lower()
+    firmo_conf = str(getattr(lead, "firmographics_confidence", "low") or "low").strip().lower()
+
+    if pixel_conf == "low":
+        penalty -= 4.0
+    elif pixel_conf == "medium":
+        penalty -= 2.0
+
+    if firmo_conf == "low":
+        penalty -= 4.0
+    elif firmo_conf == "medium":
+        penalty -= 2.0
+
+    return penalty
+
+
 def compute_quality_score(lead: Any) -> int:
     """Config-driven deterministic quality score 0..100."""
     niche = getattr(lead, "niche", "default") or "default"
@@ -111,8 +184,9 @@ def compute_quality_score(lead: Any) -> int:
         conditions = list(rule.get("conditions") or [])
         points = float(rule.get("points", 0))
         if conditions and _matches_all(lead, conditions):
-            score += points
+            score += points * _rule_multiplier(lead, conditions)
 
+    score += _confidence_penalties(lead)
     return _clamp_int(score)
 
 
