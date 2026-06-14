@@ -1,0 +1,160 @@
+metadata:
+  industry_label: "direct-to-consumer fashion and apparel brands"
+  typical_ticket: "$20-$250 average order value"
+  pain_point: "ROAS efficiency, retention, attribution gaps, and marketplace-to-website funnel leakage"
+
+analyst:
+  focus: >
+    Focus on e-commerce growth opportunities: incomplete tracking, weak paid social readiness,
+    thin first-party data capture, poor lifecycle marketing signals, and scale friction between
+    social traffic, marketplace traffic, and the website.
+  mature_business_note: >
+    If a brand already shows strong tracking coverage, broad social presence, and clear ad maturity,
+    lower urgency unless there is a visible retention or scale opportunity.
+
+  fallback_reasons_rules:
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      template: "Missing {missing_tracking_count} key tracking signals ({missing_tracking_items}) - weak attribution for paid social, retargeting, and catalog optimization."
+
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 1
+        - field: missing_tracking_count
+          op: lt
+          value: 3
+      template: "Missing {missing_tracking_items} - incomplete e-commerce attribution stack."
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: false
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      template: "Revenue footprint looks meaningful but active Meta ads were not detected - clear paid social scale opportunity."
+
+    - conditions:
+        - field: social_profiles_count
+          op: lte
+          value: 1
+      template: "Thin social footprint detected - likely room to tighten content-to-conversion loops and creator amplification."
+
+    - conditions:
+        - field: platform
+          op: in
+          value: ["wordpress", "woocommerce", "shopify", "unknown"]
+      template: "Current website stack looks easy to onboard for tracking, funnel, and CRM improvements."
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 1
+      template: "Tier 1 target with meaningful brand upside if attribution and paid media execution are tightened."
+
+  fallback_outreach_rules:
+    - priority: 1
+      conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 2
+      template: "Subject: Found {missing_tracking_count} attribution gaps on {brand}'s store - worth a quick ROAS audit?"
+
+    - priority: 2
+      conditions:
+        - field: running_meta_ads
+          op: eq
+          value: false
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      template: "Subject: {brand} looks ready for paid social scale - but Meta demand capture seems missing"
+
+    - priority: 3
+      conditions:
+        - field: social_profiles_count
+          op: lte
+          value: 1
+      template: "Subject: Quick thought on turning {brand}'s social traffic into more first-party revenue"
+
+    - priority: 4
+      conditions:
+        - field: tier
+          op: eq
+          value: 1
+      template: "Subject: One revenue leak I suspect on {brand}'s e-commerce funnel"
+
+quality_score:
+  base: 60
+  rules:
+    - conditions:
+        - field: tier
+          op: eq
+          value: 1
+      points: 12
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 2
+      points: 6
+
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      points: 10
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: true
+      points: 10
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: false
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      points: 8
+
+    - conditions:
+        - field: emails_found_count
+          op: gte
+          value: 1
+      points: 8
+
+    - conditions:
+        - field: mx_valid
+          op: eq
+          value: true
+      points: 6
+
+    - conditions:
+        - field: social_profiles_count
+          op: gte
+          value: 3
+      points: 6
+
+    - conditions:
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      points: 8
+
+    - conditions:
+        - field: platform
+          op: in
+          value: ["shopify", "woocommerce", "wordpress"]
+      points: 4
+
+    - conditions:
+        - field: missing_tracking_count
+          op: eq
+          value: 0
+      points: -8
