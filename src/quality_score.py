@@ -1,104 +1,131 @@
 # src/quality_score.py
-"""Lead Quality Score (0-100).
+"""Lead Quality Score 0-100.
 
-Roadmap v3.4: ganti dari heuristic 0-1 (gold_score) ke skala 0-100 yang
-lebih kaya. gold_score (0-1) TETEP ADA & TETEP dipakai buat tiering/sorting —
-quality_score ini LAYER TAMBAHAN yang nge-blend opportunity (gold_score)
-dengan sinyal contactability + buying signals dari extras.
-
-Dua jalur:
-    1. compute_quality_score(lead)  -> deterministic 0-100 (SELALU dihitung di
-       qualifier, jadi CSV selalu keisi walau AI mati).
-    2. analyst.py boleh OVERRIDE pakai angka AI 0-100 kalau IDINCODE_API ada
-       (lihat src/analyst.py). Kalau AI gagal/kosong → tetep pakai angka
-       deterministic ini (graceful fallback, sesuai aturan main).
-
-Arah skor: makin TINGGI = makin bagus lead-nya buat dijual
-(opportunity gede + bisa dikontak + ada sinyal budget).
+Sekarang scoring bersifat config-driven per niche.
+Kalau niche config tidak ada, otomatis fallback ke `default.yaml`.
 """
 from __future__ import annotations
 
 from typing import Any
 
-
-def _as_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def compute_quality_score(lead: Any) -> int:
-    """Hitung skor kualitas lead 0-100 (deterministic).
-
-    Blend:
-        - Base opportunity   : gold_score (0..1) -> 0..100
-        - Contactability     : ada email scraped (+8), MX valid (+4 / -4)
-        - Buying signals     : lagi pasang Meta Ads (+6)
-        - Revenue sweet spot : small/mid (+5), large/enterprise (+2), micro (-3)
-
-    Return: int 0..100 (clamped).
-    """
-    base = _as_float(getattr(lead, "score", 0.0)) * 100.0
-    score = base
-
-    # --- Contactability: lead yang gak bisa dikontak susah dijual ---
-    if getattr(lead, "emails_found", None):
-        score += 8.0
-
-    mx_valid = getattr(lead, "mx_valid", None)
-    if mx_valid is True:
-        score += 4.0
-    elif mx_valid is False:
-        score -= 4.0
-
-    # --- Buying signal: lagi spend di Meta = ada budget marketing ---
-    if getattr(lead, "running_meta_ads", None) is True:
-        score += 6.0
-
-    # --- Revenue band sweet spot ---
-    tier = (getattr(lead, "revenue_tier", "") or "").lower()
-    if tier in ("small", "mid"):
-        score += 5.0
-    elif tier in ("large", "enterprise"):
-        score += 2.0
-    elif tier == "micro":
-        score -= 3.0
-
-    # --- Business sophistication (BI) nambah confidence dikit ---
-    bi_score = _as_float(getattr(lead, "bi_score", 0))
-    if bi_score >= 60:
-        score += 3.0
-    elif bi_score >= 30:
-        score += 1.0
-
-    return _clamp_int(score)
-
-
-def _clamp_int(value: float) -> int:
-    return max(0, min(100, int(round(value))))
-
-
-def quality_band(score: int) -> str:
-    """Label band untuk readability (dipakai di PDF/summary kalau perlu)."""
-    if score >= 80:
-        return "A (hot)"
-    if score >= 65:
-        return "B (warm)"
-    if score >= 45:
-        return "C (lukewarm)"
-    return "D (cold)"
+from src.config.niche_loader import load_niche_config
 
 
 def sanitize_ai_quality_score(value: Any) -> int | None:
-    """Validasi angka quality_score dari AI. Return int 0..100 atau None
-    kalau gak valid (biar caller fallback ke deterministic)."""
+    """Normalize AI-provided score into int 0-100."""
     if value is None:
         return None
+
     try:
-        num = float(value)
+        score = int(round(float(value)))
     except (TypeError, ValueError):
         return None
-    if num != num:  # NaN
+
+    return max(0, min(100, score))
+
+
+def _missing_tracking_count(lead: Any) -> int:
+    count = 0
+    if not getattr(lead, "meta_pixel_in_html", False):
+        count += 1
+    if not getattr(lead, "tiktok_pixel_in_html", False):
+        count += 1
+    if not getattr(lead, "ga4_in_html", False):
+        count += 1
+    if not getattr(lead, "gtm_in_html", False):
+        count += 1
+    if not getattr(lead, "google_ads_in_html", False):
+        count += 1
+    return count
+
+
+def _social_count(lead: Any) -> int:
+    return len(getattr(lead, "social_profiles", []) or [])
+
+
+def _email_count(lead: Any) -> int:
+    return len(getattr(lead, "emails_found", []) or [])
+
+
+def _to_number(value: Any) -> float | None:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
         return None
-    return _clamp_int(num)
+
+
+def _field_value(lead: Any, field: str) -> Any:
+    if field == "missing_tracking_count":
+        return _missing_tracking_count(lead)
+    if field == "social_profiles_count":
+        return _social_count(lead)
+    if field == "emails_found_count":
+        return _email_count(lead)
+    return getattr(lead, field, None)
+
+
+def _matches_condition(lead: Any, condition: dict[str, Any]) -> bool:
+    field = str(condition.get("field", "")).strip()
+    op = str(condition.get("op", "eq")).strip().lower()
+    expected = condition.get("value")
+    actual = _field_value(lead, field)
+
+    if op == "eq":
+        return actual == expected
+    if op == "ne":
+        return actual != expected
+    if op == "in":
+        values = expected if isinstance(expected, list) else [expected]
+        return actual in values
+    if op == "not_in":
+        values = expected if isinstance(expected, list) else [expected]
+        return actual not in values
+
+    actual_num = _to_number(actual)
+    expected_num = _to_number(expected)
+
+    if op == "gte":
+        return actual_num is not None and expected_num is not None and actual_num >= expected_num
+    if op == "gt":
+        return actual_num is not None and expected_num is not None and actual_num > expected_num
+    if op == "lte":
+        return actual_num is not None and expected_num is not None and actual_num <= expected_num
+    if op == "lt":
+        return actual_num is not None and expected_num is not None and actual_num < expected_num
+
+    if op == "contains":
+        if isinstance(actual, list):
+            return expected in actual
+        if isinstance(actual, str):
+            return str(expected).lower() in actual.lower()
+        return False
+
+    if op == "truthy":
+        return bool(actual)
+    if op == "falsy":
+        return not bool(actual)
+
+    return False
+
+
+def _matches_all(lead: Any, conditions: list[dict[str, Any]]) -> bool:
+    return all(_matches_condition(lead, cond) for cond in conditions)
+
+
+def compute_quality_score(lead: Any) -> int:
+    """Config-driven deterministic scoring."""
+    niche = getattr(lead, "niche", "default") or "default"
+    config = load_niche_config(niche)
+    scoring = config["quality_score"]
+
+    score = int(scoring.get("base", 50))
+
+    for rule in scoring.get("rules", []):
+        conditions = list(rule.get("conditions") or [])
+        points = int(rule.get("points", 0))
+        if conditions and _matches_all(lead, conditions):
+            score += points
+
+    return max(0, min(100, score))
