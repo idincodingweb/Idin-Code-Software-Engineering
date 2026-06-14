@@ -7,6 +7,7 @@ Graceful fallback ke deterministic template kalau API fail.
 Config-driven:
 - prompt context dari YAML per niche
 - fallback reasons/outreach dari YAML per niche
+- data quality aware: jangan overclaim kalau confidence rendah
 """
 from __future__ import annotations
 
@@ -168,7 +169,8 @@ def _build_system_prompt(leads: list[QualifiedLead]) -> str:
         f"for {meta['industry_label']} (typical ticket: {meta['typical_ticket']}, "
         f"common pain point: {meta['pain_point']}).\n\n"
         f"Your job: analyze website tracking infrastructure, commercial signals, "
-        f"and performance data to identify SALES OPPORTUNITIES that agencies can pitch.\n\n"
+        f"performance data, and data-confidence limitations to identify SALES OPPORTUNITIES "
+        f"that agencies can pitch.\n\n"
         f"{analyst['focus']}\n\n"
         f"Your output is used by agencies to cold-pitch services to these businesses. "
         f"Be SPECIFIC, ACTIONABLE, and slightly URGENT.\n\n"
@@ -180,8 +182,10 @@ def _build_system_prompt(leads: list[QualifiedLead]) -> str:
         "   - quality_score (integer 0-100): how good a SALES PROSPECT this lead is for an agency. Use provided base_score as anchor and adjust within ~15 points.\n"
         "   - bi_summary (1-2 sentences): concise business-intelligence read of the company from the given signals.\n"
         "3. Tone: confident, data-driven, no fluff, no buzzwords.\n"
-        f"4. {analyst['mature_business_note']}\n"
-        "5. Response format MUST be exactly:\n"
+        "4. IMPORTANT: Do not overclaim missing tracking if pixel_confidence is low. Static HTML scanning may miss JavaScript-loaded tags.\n"
+        "5. IMPORTANT: Treat employee/revenue size as directional only when firmographics_confidence is low.\n"
+        f"6. {analyst['mature_business_note']}\n"
+        "7. Response format MUST be exactly:\n"
         "{\n"
         '  "results": {\n'
         '    "domain1.com": {"gold_reasons": "...", "outreach_angle": "...", "quality_score": 0, "bi_summary": "..."},\n'
@@ -226,6 +230,13 @@ def _build_user_prompt(leads: list[QualifiedLead]) -> str:
         brand = (getattr(lead, "brand", None) or "").strip() or "N/A"
         tier = getattr(lead, "tier", None)
         notes = (getattr(lead, "notes", None) or "").strip() or "N/A"
+        pixel_conf = getattr(lead, "pixel_confidence", "low") or "low"
+        firmo_conf = getattr(lead, "firmographics_confidence", "low") or "low"
+        data_conf = getattr(lead, "data_confidence", "low") or "low"
+        pixel_method = getattr(lead, "pixel_detection_method", "html_regex") or "html_regex"
+        firmo_source = getattr(lead, "firmographics_source", "free_enrichment") or "free_enrichment"
+        detection_notes = (getattr(lead, "detection_notes", None) or "").strip() or "N/A"
+        data_quality_flags = getattr(lead, "data_quality_flags", []) or []
 
         lines.append(
             f"- domain={lead.domain} | brand={brand} | niche={lead.niche} | "
@@ -234,6 +245,11 @@ def _build_user_prompt(leads: list[QualifiedLead]) -> str:
             f"location={lead.location or 'N/A'} | "
             f"platform={lead.platform or 'Unknown'} | "
             f"pixels_in_html=[{pixels_str}] | "
+            f"pixel_confidence={pixel_conf} | "
+            f"pixel_detection_method={pixel_method} | "
+            f"firmographics_confidence={firmo_conf} | "
+            f"firmographics_source={firmo_source} | "
+            f"data_confidence={data_conf} | "
             f"pagespeed_mobile={ps_str} | lcp={lcp_str} | response_time={rt_str} | "
             f"gold_score={lead.score:.2f} | base_score={int(getattr(lead, 'quality_score', 0) or 0)} | "
             f"emails_found={emails_n} | mx_valid={mx_str} | running_meta_ads={ads_str} | "
@@ -244,6 +260,8 @@ def _build_user_prompt(leads: list[QualifiedLead]) -> str:
             f"founded={founded if founded else 'N/A'} | "
             f"social=[{','.join(social) if social else 'NONE'}] | "
             f"tech=[{','.join(tech) if tech else 'NONE'}] | "
+            f"data_quality_flags=[{','.join(str(x) for x in data_quality_flags) if data_quality_flags else 'NONE'}] | "
+            f"detection_notes={detection_notes} | "
             f"notes={notes}"
         )
 
@@ -343,6 +361,7 @@ def _template_context(lead: QualifiedLead) -> dict[str, Any]:
     missing = _missing_tracking_items(lead)
     social = getattr(lead, "social_profiles", []) or []
     tech = getattr(lead, "tech_signals", []) or []
+    flags = getattr(lead, "data_quality_flags", []) or []
 
     return {
         "domain": lead.domain,
@@ -365,6 +384,13 @@ def _template_context(lead: QualifiedLead) -> dict[str, Any]:
         "emails_found_count": len(getattr(lead, "emails_found", []) or []),
         "mx_valid": getattr(lead, "mx_valid", None),
         "running_meta_ads": getattr(lead, "running_meta_ads", None),
+        "pixel_confidence": getattr(lead, "pixel_confidence", "low") or "low",
+        "firmographics_confidence": getattr(lead, "firmographics_confidence", "low") or "low",
+        "data_confidence": getattr(lead, "data_confidence", "low") or "low",
+        "pixel_detection_method": getattr(lead, "pixel_detection_method", "html_regex") or "html_regex",
+        "firmographics_source": getattr(lead, "firmographics_source", "free_enrichment") or "free_enrichment",
+        "detection_notes": getattr(lead, "detection_notes", "") or "",
+        "data_quality_flags": ", ".join(str(x) for x in flags) if flags else "NONE",
     }
 
 
@@ -456,8 +482,8 @@ def _fallback_reasons(lead: QualifiedLead) -> str:
 
     if not reasons:
         return (
-            "Limited opportunity - infrastructure looks healthy. "
-            "Consider for retention or scaling plays only."
+            "Limited opportunity - infrastructure looks healthy, but this assessment is conservative "
+            "when public tracking or firmographic visibility is incomplete."
         )
 
     return " ".join(dict.fromkeys(reasons))
@@ -477,3 +503,4 @@ def _fallback_outreach(lead: QualifiedLead) -> str:
             return _render_template(template, lead)
 
     return f"Subject: 3 quick wins I spotted for {_template_context(lead)['brand']} (takes 5 min to read)"
+ 
