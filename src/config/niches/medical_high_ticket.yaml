@@ -110,3 +110,12 @@ quality_score:
           op: eq
           value: 0
       points: -10
+
+qualifier:
+  weights:
+    pixels: 0.45
+    pagespeed: 0.30
+    lcp: 0.15
+    platform: 0.10
+  response_penalty_threshold_ms: 2000
+  response_penalty_factor: 0.15
