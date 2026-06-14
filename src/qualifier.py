@@ -4,58 +4,15 @@ from __future__ import annotations
 
 from typing import Optional
 
+from src.config.niche_loader import load_niche_config
 from src.models import EnrichmentResult, QualifiedLead
 from src.quality_score import compute_quality_score
 
 
-# ============================================================
-# Niche Weights (sum = 1.0 per niche)
-# ============================================================
-NICHE_CONFIG: dict[str, dict[str, float]] = {
-    # DEFAULT fallback — WAJIB ada biar .get(niche, NICHE_CONFIG["default"]) gak KeyError
-    "default": {
-        "pixels": 0.40,
-        "pagespeed": 0.30,
-        "lcp": 0.15,
-        "platform": 0.15,
-    },
-    "cosmetic_dentistry": {
-        "pixels": 0.45,
-        "pagespeed": 0.30,
-        "lcp": 0.15,
-        "platform": 0.10,
-    },
-    "premium_orthodontics": {
-        "pixels": 0.40,
-        "pagespeed": 0.35,
-        "lcp": 0.15,
-        "platform": 0.10,
-    },
-    "weight_loss_glp1": {
-        "pixels": 0.35,
-        "pagespeed": 0.35,
-        "lcp": 0.15,
-        "platform": 0.15,
-    },
-    "premium_hair_restoration": {
-        "pixels": 0.42,
-        "pagespeed": 0.30,
-        "lcp": 0.15,
-        "platform": 0.13,
-    },
-}
-
-
-# ============================================================
-# Response time penalty threshold (ms)
-# ============================================================
-_RESPONSE_PENALTY_THRESHOLD_MS = 2000
-_RESPONSE_PENALTY_FACTOR = 0.15  # 15% penalty
-
-
 def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
-    """Konversi EnrichmentResult → QualifiedLead dengan score."""
-    weights = NICHE_CONFIG.get(enrichment.niche, NICHE_CONFIG["default"])
+    """Konversi EnrichmentResult -> QualifiedLead dengan config-driven score."""
+    niche_cfg = load_niche_config(enrichment.niche or "default")
+    weights = niche_cfg["qualifier"]["weights"]
 
     pixel_score = _score_pixels(enrichment)
     pagespeed_score = _score_pagespeed(enrichment.pagespeed_score)
@@ -69,12 +26,11 @@ def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
         + platform_score * weights["platform"]
     )
 
-    # Response time penalty
-    if (
-        enrichment.response_ms is not None
-        and enrichment.response_ms > _RESPONSE_PENALTY_THRESHOLD_MS
-    ):
-        composite *= 1 - _RESPONSE_PENALTY_FACTOR
+    threshold = niche_cfg["qualifier"]["response_penalty_threshold_ms"]
+    factor = niche_cfg["qualifier"]["response_penalty_factor"]
+
+    if enrichment.response_ms is not None and enrichment.response_ms > threshold:
+        composite *= 1 - factor
 
     composite = max(0.0, min(1.0, composite))
 
@@ -84,6 +40,9 @@ def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
         niche=enrichment.niche,
         category=enrichment.category,
         score=round(composite, 4),
+        brand=getattr(enrichment, "brand", None),
+        tier=getattr(enrichment, "tier", None),
+        notes=getattr(enrichment, "notes", None),
         platform=enrichment.platform,
         meta_pixel_in_html=enrichment.has_meta_pixel,
         tiktok_pixel_in_html=enrichment.has_tiktok_pixel,
@@ -93,7 +52,6 @@ def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
         pagespeed_score=enrichment.pagespeed_score,
         lcp_ms=enrichment.lcp_ms,
         response_ms=enrichment.response_ms,
-        # Carry extras through (filled by src/extras.py in pipeline)
         emails_found=list(getattr(enrichment, "emails_found", []) or []),
         mx_valid=getattr(enrichment, "mx_valid", None),
         revenue_tier=getattr(enrichment, "revenue_tier", "unknown"),
@@ -101,11 +59,9 @@ def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
         running_meta_ads=getattr(enrichment, "running_meta_ads", None),
         meta_ads_count=getattr(enrichment, "meta_ads_count", None),
         competitors=list(getattr(enrichment, "competitors", []) or []),
-        # Email verification (optional, defaults if not enriched)
         email_statuses=dict(getattr(enrichment, "email_statuses", {}) or {}),
         best_email_status=getattr(enrichment, "best_email_status", "unknown"),
         email_verification_method=getattr(enrichment, "email_verification_method", "none"),
-        # Carry BI through (filled by src/bi_enrich.py in pipeline)
         employee_range=getattr(enrichment, "employee_range", "unknown"),
         location_count=getattr(enrichment, "location_count", 0),
         founded_year=getattr(enrichment, "founded_year", None),
@@ -115,18 +71,15 @@ def qualify_lead(enrichment: EnrichmentResult) -> QualifiedLead:
         bi_score=getattr(enrichment, "bi_score", 0),
     )
 
-    # Lead Quality Score 0-100 (deterministic; analyst.py boleh override pakai AI)
     lead.quality_score = compute_quality_score(lead)
     return lead
 
 
-# ============================================================
-# Inverted scoring functions (higher = more opportunity)
-# ============================================================
 def _score_pixels(e: EnrichmentResult) -> float:
-    """0 pixel = 1.0, 4 pixel = 0.10."""
+    """0 pixel = 1.0, fully instrumented = rendah opportunity."""
     core_pixels = [
         e.has_meta_pixel,
+        e.has_tiktok_pixel,
         e.has_ga4,
         e.has_gtm,
         e.has_google_ads,
@@ -136,16 +89,17 @@ def _score_pixels(e: EnrichmentResult) -> float:
     if present == 0:
         return 1.00
     if present == 1:
-        return 0.85
+        return 0.88
     if present == 2:
-        return 0.60
+        return 0.70
     if present == 3:
-        return 0.30
+        return 0.48
+    if present == 4:
+        return 0.24
     return 0.10
 
 
 def _score_pagespeed(score: Optional[int]) -> float:
-    """Inverted: 0-29 = 1.0, 85-100 = 0.10."""
     if score is None:
         return 0.50
     if score < 30:
@@ -160,7 +114,6 @@ def _score_pagespeed(score: Optional[int]) -> float:
 
 
 def _score_lcp(lcp_ms: Optional[int]) -> float:
-    """Inverted: > 6000ms = 1.0, < 2500ms = 0.10."""
     if lcp_ms is None:
         return 0.50
     if lcp_ms > 6000:
@@ -173,7 +126,6 @@ def _score_lcp(lcp_ms: Optional[int]) -> float:
 
 
 def _score_platform(platform: Optional[str]) -> float:
-    """WordPress/WooCommerce paling mudah onboard = score tinggi."""
     if not platform:
         return 0.50
     p = platform.lower()
@@ -181,6 +133,6 @@ def _score_platform(platform: Optional[str]) -> float:
         return 1.00
     if p in ("shopify", "bigcommerce"):
         return 0.80
-    if p in ("wix", "squarespace", "webflow"):
+    if p in ("wix", "squarespace", "webflow", "duda"):
         return 0.60
     return 0.40
