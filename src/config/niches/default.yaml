@@ -6,7 +6,7 @@ metadata:
 analyst:
   focus: >
     Focus on concrete sales opportunities visible from tracking setup, site performance,
-    contactability, and business maturity signals. Prioritize issues an agency can fix fast.
+    contactability, and business maturity signals. Prioritize issues an agency can fix quickly.
   mature_business_note: >
     If the business already looks operationally mature, reduce urgency and say limited opportunity
     unless there is a clear scale, retention, or attribution gap.
@@ -112,8 +112,20 @@ quality_score:
     - conditions:
         - field: revenue_tier
           op: in
+          value: ["small", "mid"]
+      points: 5
+
+    - conditions:
+        - field: revenue_tier
+          op: in
           value: ["large", "enterprise"]
-      points: 8
+      points: 2
+
+    - conditions:
+        - field: revenue_tier
+          op: eq
+          value: "micro"
+      points: -3
 
     - conditions:
         - field: social_profiles_count
@@ -122,13 +134,22 @@ quality_score:
       points: 4
 
     - conditions:
-        - field: pagespeed_score
-          op: lt
-          value: 50
-      points: 5
+        - field: bi_score
+          op: gte
+          value: 60
+      points: 3
 
     - conditions:
-        - field: platform
-          op: in
-          value: ["wordpress", "woocommerce"]
-      points: 4
+        - field: bi_score
+          op: gte
+          value: 30
+      points: 1
+
+qualifier:
+  weights:
+    pixels: 0.40
+    pagespeed: 0.30
+    lcp: 0.15
+    platform: 0.15
+  response_penalty_threshold_ms: 2000
+  response_penalty_factor: 0.15
