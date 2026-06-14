@@ -17,7 +17,7 @@ from typing import Optional
 # ============================================================
 @dataclass
 class Target:
-    """Single target dari targets.yaml — input mentah sebelum enrichment."""
+    """Single target dari targets.yaml - input mentah sebelum enrichment."""
     domain: str
     location: Optional[str] = None
     niche: str = "default"
@@ -27,7 +27,7 @@ class Target:
     notes: Optional[str] = None
 
     def to_dict(self) -> dict:
-        """Convert ke dict — kompatibel dengan enrich_domain() yang expect dict."""
+        """Convert ke dict - kompatibel dengan enrich_domain() yang expect dict."""
         return {
             "domain": self.domain,
             "location": self.location,
@@ -71,14 +71,23 @@ class EnrichmentResult:
     has_gtm: bool = False
     has_google_ads: bool = False
 
+    # Data quality / confidence
+    pixel_detection_method: str = "html_regex"
+    pixel_confidence: str = "low"
+    firmographics_confidence: str = "low"
+    data_confidence: str = "low"
+    firmographics_source: str = "free_enrichment"
+    detection_notes: str = ""
+    data_quality_flags: list[str] = field(default_factory=list)
+
     # Performance (from PageSpeed API)
     pagespeed_score: Optional[int] = None
     lcp_ms: Optional[int] = None
 
-    # Raw HTML (kept for extras layer — NOT exported to CSV)
+    # Raw HTML (kept for extras layer - NOT exported to CSV)
     raw_html: Optional[str] = field(default=None, repr=False)
 
-    # Extras (filled by src/extras.py — opsional)
+    # Extras (filled by src/extras.py - opsional)
     emails_found: list = field(default_factory=list)
     mx_valid: Optional[bool] = None
     revenue_tier: str = "unknown"
@@ -87,12 +96,12 @@ class EnrichmentResult:
     meta_ads_count: Optional[int] = None
     competitors: list = field(default_factory=list)
 
-    # Email Verification (filled by src/email_verifier.py — opsional)
+    # Email Verification (filled by src/email_verifier.py - opsional)
     email_statuses: dict = field(default_factory=dict)
     best_email_status: str = "unknown"
     email_verification_method: str = "none"
 
-    # Business Intelligence (filled by src/bi_enrich.py — opsional, zero-budget)
+    # Business Intelligence (filled by src/bi_enrich.py - opsional, zero-budget)
     employee_range: str = "unknown"
     location_count: int = 0
     founded_year: Optional[int] = None
@@ -126,6 +135,15 @@ class QualifiedLead:
     gtm_in_html: bool = False
     google_ads_in_html: bool = False
 
+    # Data quality / confidence
+    pixel_detection_method: str = "html_regex"
+    pixel_confidence: str = "low"
+    firmographics_confidence: str = "low"
+    data_confidence: str = "low"
+    firmographics_source: str = "free_enrichment"
+    detection_notes: str = ""
+    data_quality_flags: list[str] = field(default_factory=list)
+
     pagespeed_score: Optional[int] = None
     lcp_ms: Optional[int] = None
     response_ms: Optional[int] = None
@@ -139,7 +157,7 @@ class QualifiedLead:
     # Business Intelligence summary (deterministic fallback / AI di analyst.py)
     bi_summary: str = ""
 
-    # Extras (filled by src/extras.py — opsional, all zero-budget)
+    # Extras (filled by src/extras.py - opsional, all zero-budget)
     emails_found: list = field(default_factory=list)
     mx_valid: Optional[bool] = None
     revenue_tier: str = "unknown"
@@ -153,7 +171,7 @@ class QualifiedLead:
     best_email_status: str = "unknown"
     email_verification_method: str = "none"
 
-    # Business Intelligence (filled by src/bi_enrich.py — opsional, zero-budget)
+    # Business Intelligence (filled by src/bi_enrich.py - opsional, zero-budget)
     employee_range: str = "unknown"
     location_count: int = 0
     founded_year: Optional[int] = None
