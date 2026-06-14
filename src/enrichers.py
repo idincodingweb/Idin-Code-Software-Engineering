@@ -2,7 +2,7 @@
 """Enrichment layer: fetch HTML, detect pixels, detect platform, PageSpeed.
 
 ARSITEKTUR:
-- fetch_site() dengan multi-strategy fallback (https → http → www)
+- fetch_site() dengan multi-strategy fallback (https -> http -> www)
 - detect_pixels() dari HTML markup (regex-based, fast)
 - detect_platform() dari HTML/header signals
 - fetch_pagespeed() via Google PageSpeed Insights API
@@ -10,7 +10,7 @@ ARSITEKTUR:
 - enrich_all() = batch dengan semaphore (rate-limit aware)
 
 PRINSIP:
-- Graceful degradation: 1 enricher fail ≠ domain di-discard
+- Graceful degradation: 1 enricher fail != domain di-discard
 - Verbose logging: tiap fail wajib ada reason (DNS/timeout/HTTP code/SSL)
 - Concurrent-safe: semaphore + per-API rate limit
 """
@@ -38,7 +38,7 @@ _USER_AGENT = (
 _DEFAULT_TIMEOUT = 15.0
 _PAGESPEED_TIMEOUT = 60.0
 _MAX_CONCURRENT_ENRICHMENTS = 8
-_MAX_CONCURRENT_PAGESPEED = 4  # Google API ada quota
+_MAX_CONCURRENT_PAGESPEED = 4
 
 _HEADERS = {
     "User-Agent": _USER_AGENT,
@@ -57,7 +57,7 @@ async def enrich_all(targets: list[dict]) -> list[EnrichmentResult]:
     """Enrich SEMUA targets concurrent dengan semaphore.
 
     Args:
-        targets: list of dict {domain, location, niche, category}
+        targets: list of dict {domain, location, niche, category, brand, tier, notes}
 
     Returns:
         list of EnrichmentResult (1:1 dengan targets, fail = reachable=False)
@@ -78,31 +78,42 @@ async def enrich_all(targets: list[dict]) -> list[EnrichmentResult]:
     )
 
     reachable = sum(1 for r in results if r.reachable)
-    print(f"[pipeline] ✅ Enrichment done. Reachable: {reachable}/{len(results)}")
+    print(f"[pipeline] Enrichment done. Reachable: {reachable}/{len(results)}")
 
     return list(results)
 
 
 async def enrich_domain(target: dict) -> EnrichmentResult:
     """Enrich single domain. Robust to all failure modes."""
-    domain = target["domain"].strip().lower().replace("https://", "").replace("http://", "").rstrip("/")
+    domain = (
+        target["domain"]
+        .strip()
+        .lower()
+        .replace("https://", "")
+        .replace("http://", "")
+        .rstrip("/")
+    )
     location = target.get("location")
     niche = target.get("niche", "default")
     category = target.get("category")
+    brand = target.get("brand")
+    tier = target.get("tier")
+    notes = target.get("notes")
 
-    print(f"[enrich] → {domain}")
+    print(f"[enrich] -> {domain}")
 
-    # 1. Fetch HTML (with fallback strategies)
     html, response_ms, final_url, status_code, fail_reason = await _fetch_site_with_fallback(domain)
 
-    # Kalau total fail, return unreachable
     if html is None:
-        print(f"[enrich] ❌ {domain} UNREACHABLE: {fail_reason}")
+        print(f"[enrich] FAILED {domain} UNREACHABLE: {fail_reason}")
         return EnrichmentResult(
             domain=domain,
             location=location,
             niche=niche,
             category=category,
+            brand=brand,
+            tier=tier,
+            notes=notes,
             reachable=False,
             fail_reason=fail_reason,
             response_ms=response_ms,
@@ -117,19 +128,15 @@ async def enrich_domain(target: dict) -> EnrichmentResult:
             lcp_ms=None,
         )
 
-    # 2. Detect pixels (sync, fast)
     pixels = _detect_pixels(html)
-
-    # 3. Detect platform (sync, fast)
     platform = _detect_platform(html)
-
-    # 4. PageSpeed (async, slow — only if reachable)
     pagespeed_score, lcp_ms = await _fetch_pagespeed(domain)
 
     print(
-        f"[enrich] ✅ {domain} | platform={platform or 'unknown'} | "
+        f"[enrich] OK {domain} | platform={platform or 'unknown'} | "
         f"pixels={sum(pixels.values())}/5 | ps={pagespeed_score} | "
-        f"lcp={lcp_ms}ms | rt={response_ms}ms"
+        f"lcp={lcp_ms}ms | rt={response_ms}ms | "
+        f"url={final_url or 'n/a'}"
     )
 
     return EnrichmentResult(
@@ -137,6 +144,9 @@ async def enrich_domain(target: dict) -> EnrichmentResult:
         location=location,
         niche=niche,
         category=category,
+        brand=brand,
+        tier=tier,
+        notes=notes,
         reachable=True,
         fail_reason=None,
         response_ms=response_ms,
@@ -159,16 +169,7 @@ async def enrich_domain(target: dict) -> EnrichmentResult:
 async def _fetch_site_with_fallback(
     domain: str,
 ) -> tuple[Optional[str], Optional[int], Optional[str], Optional[int], Optional[str]]:
-    """Try multiple URL variants. Return (html, response_ms, final_url, status, fail_reason).
-
-    Strategy:
-    1. https://{domain}
-    2. https://www.{domain}
-    3. http://{domain}
-    4. http://www.{domain}
-    """
-    # Skip kalau domain udah punya www
-    variants = []
+    """Try multiple URL variants. Return (html, response_ms, final_url, status, fail_reason)."""
     if domain.startswith("www."):
         bare = domain[4:]
         variants = [
@@ -217,18 +218,15 @@ async def _fetch_once(
             elapsed_ms = int((time.perf_counter() - start) * 1000)
 
             if resp.status_code == 200:
-                # Verify it's actually HTML (not PDF/JSON/etc)
                 content_type = resp.headers.get("content-type", "").lower()
                 if "html" not in content_type and "text" not in content_type:
                     return None, elapsed_ms, resp.status_code, f"non-html content-type: {content_type}"
 
-                # Limit size (5MB max) untuk mencegah memory bloat
                 text = resp.text
                 if len(text) > 5_000_000:
                     text = text[:5_000_000]
                 return text, elapsed_ms, resp.status_code, None
 
-            # Non-200 (404, 403, 500, etc)
             return None, elapsed_ms, resp.status_code, f"HTTP {resp.status_code}"
 
     except httpx.ConnectTimeout:
@@ -236,7 +234,6 @@ async def _fetch_once(
     except httpx.ReadTimeout:
         return None, None, None, "read_timeout"
     except httpx.ConnectError as e:
-        # DNS fail, connection refused, etc
         msg = str(e)[:100]
         return None, None, None, f"connect_error: {msg}"
     except httpx.RemoteProtocolError as e:
@@ -261,9 +258,8 @@ def ssl_error_catch():
 
 
 # ============================================================
-# Pixel detection (HTML markup only — legal & verifiable)
+# Pixel detection
 # ============================================================
-# Compiled patterns (faster, cleaner)
 _META_PIXEL_PATTERNS = [
     re.compile(r"connect\.facebook\.net/[^/]+/fbevents\.js", re.IGNORECASE),
     re.compile(r"fbq\s*\(\s*['\"]init['\"]", re.IGNORECASE),
@@ -294,7 +290,6 @@ _GOOGLE_ADS_PATTERNS = [
 
 
 def _detect_pixels(html: str) -> dict[str, bool]:
-    """Detect tracking pixels from HTML markup."""
     return {
         "meta": _any_match(html, _META_PIXEL_PATTERNS),
         "tiktok": _any_match(html, _TIKTOK_PIXEL_PATTERNS),
@@ -305,7 +300,7 @@ def _detect_pixels(html: str) -> dict[str, bool]:
 
 
 def _any_match(html: str, patterns: list[re.Pattern]) -> bool:
-    return any(p.search(html) for p in patterns)
+    return any(pattern.search(html) for pattern in patterns)
 
 
 # ============================================================
@@ -374,25 +369,20 @@ _PLATFORM_SIGNALS: list[tuple[str, list[re.Pattern]]] = [
 
 
 def _detect_platform(html: str) -> Optional[str]:
-    """Detect CMS/platform from HTML signals. Return None if unknown."""
-    # WooCommerce check WAJIB sebelum WordPress (Woo = subset Wordpress)
     for platform_name, patterns in _PLATFORM_SIGNALS:
-        if any(p.search(html) for p in patterns):
+        if any(pattern.search(html) for pattern in patterns):
             return platform_name
     return None
 
 
 # ============================================================
-# PageSpeed (Google API)
+# PageSpeed
 # ============================================================
 _PAGESPEED_SEM = asyncio.Semaphore(_MAX_CONCURRENT_PAGESPEED)
 
 
 async def _fetch_pagespeed(domain: str) -> tuple[Optional[int], Optional[int]]:
-    """Fetch PageSpeed mobile score + LCP. Return (score, lcp_ms).
-
-    Graceful fail: kalau API key kosong / API down, return (None, None).
-    """
+    """Fetch PageSpeed mobile score + LCP. Return (score, lcp_ms)."""
     if not PAGESPEED_API_KEY:
         return None, None
 
@@ -420,7 +410,6 @@ async def _fetch_pagespeed(domain: str) -> tuple[Optional[int], Optional[int]]:
                 score = perf.get("score")
                 score_int = int(score * 100) if isinstance(score, (int, float)) else None
 
-                # LCP dari audits
                 audits = lighthouse.get("audits", {})
                 lcp_audit = audits.get("largest-contentful-paint", {})
                 lcp_ms = lcp_audit.get("numericValue")
