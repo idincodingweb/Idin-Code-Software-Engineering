@@ -13,9 +13,18 @@ analyst:
 
   fallback_reasons_rules:
     - conditions:
+        - field: pixel_confidence
+          op: eq
+          value: "low"
+      template: "Tracking visibility is low-confidence because static HTML scanning may miss JavaScript-loaded tags."
+
+    - conditions:
         - field: missing_tracking_count
           op: gte
           value: 3
+        - field: pixel_confidence
+          op: in
+          value: ["high", "medium"]
       template: "Missing {missing_tracking_count} key tracking signals ({missing_tracking_items}) - major attribution and retargeting gap."
 
     - conditions:
@@ -25,6 +34,9 @@ analyst:
         - field: missing_tracking_count
           op: lt
           value: 3
+        - field: pixel_confidence
+          op: in
+          value: ["high", "medium"]
       template: "Missing {missing_tracking_items} - incomplete attribution stack."
 
     - conditions:
@@ -54,12 +66,21 @@ analyst:
           value: ["wordpress", "woocommerce"]
       template: "WordPress stack - easy to onboard for tracking and speed fixes."
 
+    - conditions:
+        - field: firmographics_confidence
+          op: eq
+          value: "low"
+      template: "Company size and revenue signals are estimated from public web data and should be treated as directional."
+
   fallback_outreach_rules:
     - priority: 1
       conditions:
         - field: missing_tracking_count
           op: gte
           value: 2
+        - field: pixel_confidence
+          op: in
+          value: ["high", "medium"]
       template: "Subject: Found {missing_tracking_count} tracking gaps on {brand}'s site - worth a quick chat?"
 
     - priority: 2
@@ -76,17 +97,24 @@ analyst:
           value: 3000
       template: "Subject: Quick note about {brand}'s site speed (I think you're losing conversions)"
 
+    - priority: 4
+      conditions:
+        - field: pixel_confidence
+          op: eq
+          value: "low"
+      template: "Subject: I spotted a few possible funnel blind spots on {brand}'s site - worth validating?"
+
 quality_score:
   base: 55
   rules:
     - conditions:
-        - field: missing_tracking_count
+        - field: weighted_missing_tracking_count
           op: gte
           value: 3
       points: 12
 
     - conditions:
-        - field: missing_tracking_count
+        - field: weighted_missing_tracking_count
           op: eq
           value: 0
       points: -10
