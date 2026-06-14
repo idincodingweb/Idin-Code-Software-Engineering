@@ -36,7 +36,6 @@ _SOCIAL_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("yelp", ("yelp.com/biz/", "yelp.com/")),
 )
 
-# Jangan anggap link generic ke homepage platform sebagai profil bisnis.
 _SOCIAL_NOISE = (
     "facebook.com/sharer",
     "facebook.com/tr",
@@ -56,8 +55,13 @@ _TECH_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("acuity", ("acuityscheduling.com", "squarespace-scheduling")),
     ("setmore", ("setmore.com",)),
     ("zocdoc", ("zocdoc.com",)),
-    ("booking_widget", ("book now", "book an appointment", "request appointment",
-                        "schedule a consultation", "book online")),
+    ("booking_widget", (
+        "book now",
+        "book an appointment",
+        "request appointment",
+        "schedule a consultation",
+        "book online",
+    )),
     # Chat / support
     ("intercom", ("intercom.io", "widget.intercom")),
     ("drift", ("drift.com", "js.driftt.com")),
@@ -65,8 +69,10 @@ _TECH_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("zendesk", ("zendesk.com", "zdassets.com")),
     ("livechat", ("livechatinc.com", "livechat.com")),
     ("hubspot_chat", ("js.hs-scripts.com", "js.usemessages.com")),
-    ("fb_messenger_chat", ("connect.facebook.net/en_us/sdk/xfbml.customerchat",
-                           "fb-customerchat")),
+    ("fb_messenger_chat", (
+        "connect.facebook.net/en_us/sdk/xfbml.customerchat",
+        "fb-customerchat",
+    )),
     # Payments
     ("stripe", ("js.stripe.com", "stripe.com/v3")),
     ("paypal", ("paypal.com/sdk", "paypalobjects.com")),
@@ -101,32 +107,39 @@ _FOUNDED_RE = re.compile(
 )
 
 _MULTILOC_KEYWORDS = (
-    "our locations", "all locations", "find a location", "store locator",
-    "our offices", "branches", "multiple locations", "view all locations",
+    "our locations",
+    "all locations",
+    "find a location",
+    "store locator",
+    "stockist",
+    "stockists",
+    "store locations",
+    "our offices",
+    "branches",
+    "multiple locations",
+    "view all locations",
 )
 
 
 def _detect_social(html_low: str) -> list[str]:
     found: list[str] = []
     for label, needles in _SOCIAL_PATTERNS:
-        for n in needles:
-            idx = html_low.find(n)
+        for needle in needles:
+            idx = html_low.find(needle)
             if idx == -1:
                 continue
-            # cek noise (share/intent link) di sekitar match
             window = html_low[max(0, idx - 5): idx + 40]
             if any(noise in window for noise in _SOCIAL_NOISE):
                 continue
             found.append(label)
             break
-    # dedup, keep order
     return list(dict.fromkeys(found))
 
 
 def _detect_tech(html_low: str) -> list[str]:
     found: list[str] = []
     for label, needles in _TECH_PATTERNS:
-        if any(n in html_low for n in needles):
+        if any(needle in html_low for needle in needles):
             found.append(label)
     return list(dict.fromkeys(found))
 
@@ -134,35 +147,38 @@ def _detect_tech(html_low: str) -> list[str]:
 def _detect_founded_year(html: str) -> Optional[int]:
     current = datetime.utcnow().year
     best: Optional[int] = None
-    for m in _FOUNDED_RE.finditer(html):
+    for match in _FOUNDED_RE.finditer(html):
         try:
-            year = int(m.group(1))
+            year = int(match.group(1))
         except (TypeError, ValueError):
             continue
         if 1850 <= year <= current:
-            # ambil tahun paling tua yang masuk akal (= paling lama berdiri)
             if best is None or year < best:
                 best = year
     return best
 
 
 def _detect_employee_range(html: str, html_low: str, location_count: int) -> str:
-    # 1. Angka eksplisit
     num: Optional[int] = None
-    m = _EMPLOYEE_COUNT_RE.search(html) or _EMPLOYEE_PLUS_RE.search(html)
-    if m:
+    match = _EMPLOYEE_COUNT_RE.search(html) or _EMPLOYEE_PLUS_RE.search(html)
+    if match:
         try:
-            num = int(m.group(1))
+            num = int(match.group(1))
         except (TypeError, ValueError):
             num = None
     if num is not None:
         return _bucket_employees(num)
 
-    # 2. Heuristik dari sinyal struktural
     has_careers = any(
-        k in html_low
-        for k in ("careers", "join our team", "we're hiring", "open positions",
-                  "job openings")
+        keyword in html_low
+        for keyword in (
+            "careers",
+            "join our team",
+            "we're hiring",
+            "we are hiring",
+            "open positions",
+            "job openings",
+        )
     )
     if location_count >= 5:
         return "201-500"
@@ -186,12 +202,15 @@ def _bucket_employees(n: int) -> str:
 
 
 def _detect_location_count(html: str, html_low: str) -> int:
-    # Telepon unik = proxy kasar buat jumlah cabang
     phones = re.findall(r"\+?\d[\d\-\s\(\)]{8,}\d", html)
-    normalized = {re.sub(r"\D", "", p)[-10:] for p in phones if len(re.sub(r"\D", "", p)) >= 7}
+    normalized = {
+        re.sub(r"\D", "", p)[-10:]
+        for p in phones
+        if len(re.sub(r"\D", "", p)) >= 7
+    }
     phone_locations = len(normalized)
 
-    multiloc = any(k in html_low for k in _MULTILOC_KEYWORDS)
+    multiloc = any(keyword in html_low for keyword in _MULTILOC_KEYWORDS)
 
     if multiloc and phone_locations >= 3:
         return max(phone_locations, 3)
@@ -199,7 +218,7 @@ def _detect_location_count(html: str, html_low: str) -> int:
         return max(phone_locations, 2)
     if phone_locations >= 1:
         return 1
-    return 1  # reachable site = minimal 1 lokasi
+    return 1
 
 
 def _compute_bi_score(
@@ -212,20 +231,18 @@ def _compute_bi_score(
 ) -> int:
     """Indeks sophistication 0-100 (makin tinggi = bisnis makin mapan)."""
     score = 0.0
-    # Social presence (max 24)
     score += min(len(social_profiles), 4) * 6.0
-    # Tech maturity (max 36)
     score += min(len(tech_signals), 6) * 6.0
-    # Established (max 12)
     if founded_year is not None:
         score += 12.0
-    # Headcount (max 16)
     headcount_points = {
-        "1-10": 4.0, "11-50": 8.0, "51-200": 12.0,
-        "201-500": 14.0, "500+": 16.0,
+        "1-10": 4.0,
+        "11-50": 8.0,
+        "51-200": 12.0,
+        "201-500": 14.0,
+        "500+": 16.0,
     }
     score += headcount_points.get(employee_range, 0.0)
-    # Footprint (max 12)
     score += min(location_count, 6) * 2.0
     return max(0, min(100, int(round(score))))
 
@@ -275,23 +292,95 @@ def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
         return default
 
 
+def _is_fashion_like(lead: Any) -> bool:
+    niche = (getattr(lead, "niche", None) or "").lower()
+    category = (getattr(lead, "category", None) or "").lower()
+    text = f"{niche} {category}"
+    return any(
+        keyword in text
+        for keyword in (
+            "fashion",
+            "apparel",
+            "footwear",
+            "streetwear",
+            "batik",
+            "hijab",
+            "activewear",
+            "marketplace",
+            "retail",
+        )
+    )
+
+
 def build_bi_summary(lead: Any) -> str:
     """Fallback deterministic BI summary (1-2 kalimat) dari field lead.
 
     Dipakai analyst.py kalau AI gak ngasih bi_summary.
     """
-    parts: list[str] = []
-
+    brand = (getattr(lead, "brand", None) or "").strip()
+    tier = getattr(lead, "tier", None)
     founded = getattr(lead, "founded_year", None)
     years = getattr(lead, "years_in_business", None)
+    emp = getattr(lead, "employee_range", "") or "unknown"
+    loc = getattr(lead, "location_count", 0) or 0
+    tech = getattr(lead, "tech_signals", []) or []
+    social = getattr(lead, "social_profiles", []) or []
+    revenue_tier = (getattr(lead, "revenue_tier", "") or "").strip()
+    platform = (getattr(lead, "platform", "") or "").strip()
+    notes = (getattr(lead, "notes", "") or "").strip()
+
+    if _is_fashion_like(lead):
+        parts: list[str] = []
+
+        intro_bits: list[str] = []
+        if brand:
+            intro_bits.append(brand)
+        if tier is not None:
+            intro_bits.append(f"tier {tier} target")
+        if revenue_tier and revenue_tier != "unknown":
+            intro_bits.append(f"revenue tier {revenue_tier}")
+        if intro_bits:
+            parts.append(", ".join(intro_bits))
+
+        maturity_bits: list[str] = []
+        if founded:
+            if years:
+                maturity_bits.append(f"established {founded} (~{years} yrs)")
+            else:
+                maturity_bits.append(f"established {founded}")
+        if emp and emp != "unknown":
+            maturity_bits.append(f"{emp} staff")
+        if loc > 1:
+            maturity_bits.append(f"{loc} locations")
+        if maturity_bits:
+            parts.append(", ".join(maturity_bits))
+
+        stack_bits: list[str] = []
+        if platform:
+            stack_bits.append(f"platform {platform}")
+        if tech:
+            stack_bits.append(f"tech: {', '.join(tech[:4])}")
+        if social:
+            stack_bits.append(f"social: {', '.join(social[:5])}")
+        if stack_bits:
+            parts.append(". ".join(stack_bits))
+
+        if notes:
+            parts.append(notes)
+
+        if not parts:
+            return "Fashion/e-commerce brand with limited public BI signals detected."
+
+        return ". ".join(p[0].upper() + p[1:] for p in parts if p) + "."
+
+    parts = []
+
     if founded:
         if years:
             parts.append(f"Established {founded} (~{years} yrs in business)")
         else:
             parts.append(f"Established {founded}")
 
-    emp = getattr(lead, "employee_range", "") or "unknown"
-    loc = getattr(lead, "location_count", 0) or 0
     size_bits = []
     if emp and emp != "unknown":
         size_bits.append(f"{emp} staff")
@@ -300,15 +389,12 @@ def build_bi_summary(lead: Any) -> str:
     if size_bits:
         parts.append(", ".join(size_bits))
 
-    tech = getattr(lead, "tech_signals", []) or []
     if tech:
         parts.append(f"tech stack: {', '.join(tech[:5])}")
 
-    social = getattr(lead, "social_profiles", []) or []
     if social:
         parts.append(f"social: {', '.join(social[:5])}")
 
-    revenue_tier = (getattr(lead, "revenue_tier", "") or "").strip()
     if revenue_tier and revenue_tier != "unknown":
         parts.append(f"revenue tier: {revenue_tier}")
 
