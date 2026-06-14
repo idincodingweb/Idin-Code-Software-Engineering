@@ -1,10 +1,10 @@
 # src/config/niche_loader.py
-"""Load per-niche YAML config for analyst + quality scoring.
+"""Load per-niche YAML config for analyst + qualifier + quality scoring.
 
-Design goals:
-- ganti `targets.yaml` saja, code tetap sama
-- fallback ke `default.yaml` kalau niche belum punya config
-- normalize schema agar caller bisa simpel
+Goals:
+- Ganti targets.yaml / niche tanpa ubah Python code.
+- Fallback ke default.yaml kalau niche belum ada.
+- Schema dinormalisasi supaya caller simpel.
 """
 from __future__ import annotations
 
@@ -22,8 +22,7 @@ def _safe_slug(value: str) -> str:
 
 
 def _config_path_for(niche: str) -> Path:
-    slug = _safe_slug(niche)
-    return NICHE_CONFIG_DIR / f"{slug}.yaml"
+    return NICHE_CONFIG_DIR / f"{_safe_slug(niche)}.yaml"
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -38,8 +37,31 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 def _normalize_config(raw: dict[str, Any], niche: str) -> dict[str, Any]:
     metadata = raw.get("metadata") or {}
-    scoring = raw.get("quality_score") or {}
     analyst = raw.get("analyst") or {}
+    quality_score = raw.get("quality_score") or {}
+    qualifier = raw.get("qualifier") or {}
+
+    weights = qualifier.get("weights") or {}
+    total = (
+        float(weights.get("pixels", 0.0))
+        + float(weights.get("pagespeed", 0.0))
+        + float(weights.get("lcp", 0.0))
+        + float(weights.get("platform", 0.0))
+    )
+    if total <= 0:
+        norm_weights = {
+            "pixels": 0.40,
+            "pagespeed": 0.30,
+            "lcp": 0.15,
+            "platform": 0.15,
+        }
+    else:
+        norm_weights = {
+            "pixels": float(weights.get("pixels", 0.0)) / total,
+            "pagespeed": float(weights.get("pagespeed", 0.0)) / total,
+            "lcp": float(weights.get("lcp", 0.0)) / total,
+            "platform": float(weights.get("platform", 0.0)) / total,
+        }
 
     return {
         "niche": niche,
@@ -64,7 +86,7 @@ def _normalize_config(raw: dict[str, Any], niche: str) -> dict[str, Any]:
             "mature_business_note": str(
                 analyst.get(
                     "mature_business_note",
-                    "If the business already looks operationally mature, lower urgency and mention limited opportunity.",
+                    "If the business already looks operationally mature, reduce urgency and frame it as limited opportunity.",
                 )
             ).strip(),
             "fallback_reasons_rules": list(
@@ -75,8 +97,17 @@ def _normalize_config(raw: dict[str, Any], niche: str) -> dict[str, Any]:
             ),
         },
         "quality_score": {
-            "base": int(scoring.get("base", 50)),
-            "rules": list(scoring.get("rules") or []),
+            "base": int(quality_score.get("base", 55)),
+            "rules": list(quality_score.get("rules") or []),
+        },
+        "qualifier": {
+            "weights": norm_weights,
+            "response_penalty_threshold_ms": int(
+                qualifier.get("response_penalty_threshold_ms", 2000)
+            ),
+            "response_penalty_factor": float(
+                qualifier.get("response_penalty_factor", 0.15)
+            ),
         },
     }
 
@@ -87,16 +118,14 @@ def load_niche_config(niche: str) -> dict[str, Any]:
     default_path = _config_path_for(DEFAULT_NICHE_CONFIG)
 
     if not default_path.exists():
-        raise FileNotFoundError(
-            f"Default niche config not found: {default_path}"
-        )
+        raise FileNotFoundError(f"Default niche config not found: {default_path}")
 
     with default_path.open("r", encoding="utf-8") as f:
         default_raw = yaml.safe_load(f) or {}
 
-    config_path = _config_path_for(niche_slug)
-    if config_path.exists():
-        with config_path.open("r", encoding="utf-8") as f:
+    niche_path = _config_path_for(niche_slug)
+    if niche_path.exists():
+        with niche_path.open("r", encoding="utf-8") as f:
             niche_raw = yaml.safe_load(f) or {}
     else:
         niche_raw = {}
