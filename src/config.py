@@ -4,6 +4,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 IDINCODE_API = os.getenv("IDINCODE_API", "").strip()
