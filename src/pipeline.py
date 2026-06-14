@@ -1,5 +1,5 @@
 # src/pipeline.py
-"""Main orchestrator: load → enrich → extras → qualify → analyst → export → pdf.
+"""Main orchestrator: load -> enrich -> extras -> qualify -> analyst -> export -> pdf.
 
 Return summary dict yang dipakai run.py.
 """
@@ -48,82 +48,103 @@ async def run_pipeline(
     start_ts = time.perf_counter()
 
     print("=" * 60)
-    print("🎯 Apex Market Intelligence | By Idincode")
+    print("Apex Market Intelligence | By Idincode")
     print("=" * 60)
 
-    # 0. Dedup DB
     db: DedupDB | None = None
     if enable_dedup:
         db = DedupDB()
         if reset_dedup:
             import os
+
             try:
                 os.remove(db.path)
                 print(f"[dedup] wiped {db.path}")
             except OSError:
                 pass
             db = DedupDB()
-        s = db.stats()
-        print(f"[dedup] enabled (db={s['db_path']}, leads_seen={s['leads_seen']}, "
-              f"include_seen={include_seen})")
+        stats = db.stats()
+        print(
+            f"[dedup] enabled (db={stats['db_path']}, leads_seen={stats['leads_seen']}, "
+            f"include_seen={include_seen})"
+        )
     else:
         print("[dedup] DISABLED")
 
-    # 1. Load targets
     targets = load_targets(targets_path)
     total_targets = len(targets)
     print(f"[pipeline] Loaded {total_targets} targets from {targets_path}")
 
-    # 1b. Dedup filter
     if db and not include_seen:
         before = len(targets)
         targets = [t for t in targets if not db.is_lead_seen(getattr(t, "domain", ""))]
         skipped = before - len(targets)
         if skipped:
-            print(f"[dedup] skip {skipped} target yg udah pernah ke-process "
-                  f"(--include-seen kalau mau ulang)")
+            print(
+                f"[dedup] skip {skipped} target yg udah pernah ke-process "
+                f"(--include-seen kalau mau ulang)"
+            )
         if not targets:
-            print("[dedup] semua target udah pernah ke-process. "
-                  "Tambah target baru atau pakai --include-seen.")
+            print(
+                "[dedup] semua target udah pernah ke-process. "
+                "Tambah target baru atau pakai --include-seen."
+            )
             duration = round(time.perf_counter() - start_ts, 2)
             return {
-                "total_targets": total_targets, "reachable": 0, "qualified": 0,
-                "output_files": [], "pdf_files": [],
+                "total_targets": total_targets,
+                "reachable": 0,
+                "qualified": 0,
+                "output_files": [],
+                "pdf_files": [],
                 "duration_seconds": duration,
             }
 
-    # 2. Normalize targets
-    normalized_targets = []
-    for t in targets:
-        if hasattr(t, "to_dict"):
-            normalized_targets.append(t.to_dict())
-        elif isinstance(t, dict):
-            normalized_targets.append(t)
-        else:
-            normalized_targets.append({
-                "domain": getattr(t, "domain", ""),
-                "location": getattr(t, "location", None),
-                "niche": getattr(t, "niche", "default"),
-                "category": getattr(t, "category", None),
-            })
+    normalized_targets: list[dict[str, Any]] = []
+    for target in targets:
+        if hasattr(target, "to_dict"):
+            normalized_targets.append(target.to_dict())
+            continue
 
-    # 3. Enrich (concurrent)
+        if isinstance(target, dict):
+            normalized_targets.append(
+                {
+                    "domain": target.get("domain", ""),
+                    "location": target.get("location"),
+                    "niche": target.get("niche", "default"),
+                    "category": target.get("category"),
+                    "brand": target.get("brand"),
+                    "tier": target.get("tier"),
+                    "notes": target.get("notes"),
+                }
+            )
+            continue
+
+        normalized_targets.append(
+            {
+                "domain": getattr(target, "domain", ""),
+                "location": getattr(target, "location", None),
+                "niche": getattr(target, "niche", "default"),
+                "category": getattr(target, "category", None),
+                "brand": getattr(target, "brand", None),
+                "tier": getattr(target, "tier", None),
+                "notes": getattr(target, "notes", None),
+            }
+        )
+
     enrichments = await enrich_all(normalized_targets)
 
-    # 4. Filter unreachable
     reachable = [e for e in enrichments if getattr(e, "reachable", True)]
     unreachable = [e for e in enrichments if not getattr(e, "reachable", True)]
 
     if unreachable:
         print(f"\n[pipeline] WARN: {len(unreachable)} domains unreachable:")
         reasons: dict[str, int] = {}
-        for e in unreachable:
-            reason = getattr(e, "fail_reason", None) or "unknown"
+        for enrichment in unreachable:
+            reason = getattr(enrichment, "fail_reason", None) or "unknown"
             reasons[reason] = reasons.get(reason, 0) + 1
         for reason, count in sorted(reasons.items(), key=lambda x: -x[1]):
             print(f"   - {reason}: {count}")
 
-    # 5. Handle 0 reachable
     if not reachable:
         print("\n[pipeline] FATAL: 0 reachable domains.")
         output_files: list[str] = []
@@ -142,11 +163,10 @@ async def run_pipeline(
             "duration_seconds": duration,
         }
 
-    # 6. Extras enrichment (zero-budget: emails, revenue, ads, competitors, BI)
     if enable_extras:
         base_htmls = {
-            getattr(e, "domain", ""): getattr(e, "raw_html", "") or ""
-            for e in reachable
+            getattr(enrichment, "domain", ""): getattr(enrichment, "raw_html", "") or ""
+            for enrichment in reachable
         }
         extras_results = await enrich_extras_batch(
             reachable,
@@ -159,25 +179,19 @@ async def run_pipeline(
             enable_email_verify=enable_email_verify,
             email_verify_use_providers=email_verify_use_providers,
         )
-        # Merge back into EnrichmentResult so qualifier picks them up
-        for e, x in zip(reachable, extras_results):
-            for k, v in x.items():
-                setattr(e, k, v)
+        for enrichment, extra in zip(reachable, extras_results):
+            for key, value in extra.items():
+                setattr(enrichment, key, value)
 
-    # 7. Qualify (scoring)
     print(f"\n[pipeline] Scoring {len(reachable)} reachable leads...")
-    qualified = [qualify_lead(e) for e in reachable]
+    qualified = [qualify_lead(enrichment) for enrichment in reachable]
 
-    # 8. AI Analyst (with fallback)
     qualified = await enrich_with_ai_analyst(qualified)
 
-    # 9. Sort by score
     qualified.sort(key=lambda x: x.score, reverse=True)
 
-    # 10. Export tiered CSVs
     output_files = export_tiered_csvs(qualified)
 
-    # 11. PDF audits (premium gold only by default)
     pdf_files: list[str] = []
     if enable_pdf:
         pdf_files = generate_pdf_audits(
@@ -187,11 +201,12 @@ async def run_pipeline(
             min_score=pdf_min_score,
         )
 
-    # 12. CRM webhooks (push leads ke HubSpot/Pipedrive/Salesforce/Airtable/Zoho)
     crm_summary: dict[str, Any] | None = None
     if enable_crm:
-        print(f"\n[pipeline] CRM push (min_score={crm_min_score}, "
-              f"limit={crm_limit or 'all'}, dry_run={crm_dry_run})...")
+        print(
+            f"\n[pipeline] CRM push (min_score={crm_min_score}, "
+            f"limit={crm_limit or 'all'}, dry_run={crm_dry_run})..."
+        )
         try:
             crm_summary = await push_leads_to_crm(
                 qualified,
@@ -203,7 +218,6 @@ async def run_pipeline(
             print(f"[crm] WARN: push failed: {type(e).__name__}: {e}")
             crm_summary = {"error": f"{type(e).__name__}: {e}"}
 
-    # 12b. Google Sheets push (opsional)
     sheets_summary: dict[str, Any] | None = None
     if enable_sheets_push:
         print("\n[pipeline] Google Sheets push...")
@@ -217,19 +231,18 @@ async def run_pipeline(
             print(f"[sheets] WARN: push failed: {type(e).__name__}: {e}")
             sheets_summary = {"error": f"{type(e).__name__}: {e}"}
 
-    # 13. Persist dedup — mark domain yang berhasil ke-process (reachable)
     if db:
-        for e in reachable:
-            d = getattr(e, "domain", "")
-            if d:
-                db.mark_lead(d)
-        s = db.stats()
-        print(f"[dedup] persisted. total leads_seen={s['leads_seen']}")
+        for enrichment in reachable:
+            domain = getattr(enrichment, "domain", "")
+            if domain:
+                db.mark_lead(domain)
+        stats = db.stats()
+        print(f"[dedup] persisted. total leads_seen={stats['leads_seen']}")
 
     duration = round(time.perf_counter() - start_ts, 2)
 
     print("\n" + "=" * 60)
-    print("✅ Pipeline complete!")
+    print("Pipeline complete!")
     print("=" * 60)
 
     return {
