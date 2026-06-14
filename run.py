@@ -1,5 +1,5 @@
 # run.py
-"""Apex Market Intelligence — Lead Qualification Pipeline.
+"""Apex Market Intelligence - Lead Qualification Pipeline.
 
 Built by Idin Iskandar.
 
@@ -21,7 +21,7 @@ import argparse
 import asyncio
 import sys
 
-from src.config import IDINCODE_API, PAGESPEED_API_KEY
+from src.config import IDINCODE_API, NICHE_CONFIG_DIR, PAGESPEED_API_KEY
 from src.pipeline import run_pipeline
 
 
@@ -36,6 +36,7 @@ def _print_env_status() -> None:
     print("[ENV CHECK]")
     print(f"  PAGESPEED_API_KEY : {'SET' if PAGESPEED_API_KEY else 'MISSING'}")
     print(f"  IDINCODE_API      : {'SET' if IDINCODE_API else 'MISSING'}")
+    print(f"  NICHE_CONFIG_DIR  : {NICHE_CONFIG_DIR}")
 
 
 def _print_summary(summary: dict) -> None:
@@ -48,13 +49,15 @@ def _print_summary(summary: dict) -> None:
     print(f"  Output CSVs         : {len(summary['output_files'])}")
     print(f"  PDF audits          : {len(summary.get('pdf_files', []))}")
     print(f"  Duration            : {summary['duration_seconds']}s")
+
     print("  Generated CSVs:")
-    for f in summary["output_files"]:
-        print(f"    - {f}")
+    for file_path in summary["output_files"]:
+        print(f"    - {file_path}")
+
     if summary.get("pdf_files"):
         print("  Generated PDFs:")
-        for f in summary["pdf_files"][:10]:
-            print(f"    - {f}")
+        for file_path in summary["pdf_files"][:10]:
+            print(f"    - {file_path}")
         if len(summary["pdf_files"]) > 10:
             print(f"    ... +{len(summary['pdf_files']) - 10} more")
 
@@ -66,7 +69,8 @@ def _print_summary(summary: dict) -> None:
         elif crm.get("skipped_reason"):
             print(f"    - skipped: {crm['skipped_reason']}")
         else:
-            print(f"    - providers : {', '.join(crm.get('providers', [])) or 'none'}")
+            providers = ", ".join(crm.get("providers", [])) or "none"
+            print(f"    - providers : {providers}")
             print(f"    - selected  : {crm.get('selected', 0)}")
             print(f"    - sent      : {crm.get('sent', 0)}")
             print(f"    - failed    : {crm.get('failed', 0)}")
@@ -83,10 +87,13 @@ def _print_summary(summary: dict) -> None:
         else:
             if sheets.get("spreadsheet_url"):
                 print(f"    - spreadsheet: {sheets['spreadsheet_url']}")
-            for p in sheets.get("pushed", []):
-                print(f"    - OK   {p['file']} -> '{p['worksheet']}' ({p['rows']} rows)")
-            for p in sheets.get("failed", []):
-                print(f"    - FAIL {p['file']}: {p['error']}")
+            for pushed in sheets.get("pushed", []):
+                print(
+                    f"    - OK   {pushed['file']} -> "
+                    f"'{pushed['worksheet']}' ({pushed['rows']} rows)"
+                )
+            for failed in sheets.get("failed", []):
+                print(f"    - FAIL {failed['file']}: {failed['error']}")
 
 
 async def _main(args: argparse.Namespace) -> int:
@@ -136,49 +143,117 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Apex Market Intelligence pipeline"
     )
-    parser.add_argument("--targets", default="targets.yaml",
-                        help="Path to targets.yaml")
-    parser.add_argument("--no-extras", action="store_true",
-                        help="Skip extras enrichment (emails/revenue/ads/competitors)")
-    parser.add_argument("--no-pdf", action="store_true",
-                        help="Skip PDF audit generation")
-    parser.add_argument("--ads", action="store_true",
-                        help="Enable Meta Ad Library scrape (slow, flaky)")
-    parser.add_argument("--competitors", action="store_true",
-                        help="Enable competitor discovery via DDG (slow)")
-    parser.add_argument("--pdf-min-score", type=float, default=0.85,
-                        help="Minimum score for PDF audit generation (default 0.85)")
-    parser.add_argument("--pdf-top", type=int, default=25,
-                        help="Max number of PDF audits to generate (default 25)")
-    parser.add_argument("--no-dedup", action="store_true",
-                        help="Nonaktifkan SQLite dedup (default: dedup ON)")
-    parser.add_argument("--include-seen", action="store_true",
-                        help="Ikutkan target domain yang sudah pernah muncul")
-    parser.add_argument("--reset-dedup", action="store_true",
-                        help="Wipe dedup DB sebelum mulai")
-    parser.add_argument("--no-bi", action="store_true",
-                        help="Skip Business Intelligence enrichment (default: BI ON)")
-    parser.add_argument("--crm", action="store_true",
-                        help="Push qualified leads ke CRM webhook (set CRM_*_WEBHOOK_URL)")
-    parser.add_argument("--crm-min-score", type=float, default=0.70,
-                        help="Min gold_score buat di-push ke CRM (default 0.70)")
-    parser.add_argument("--crm-limit", type=int, default=0,
-                        help="Max lead yg di-push ke CRM (0 = semua yg lolos)")
-    parser.add_argument("--crm-dry-run", action="store_true",
-                        help="Cetak payload CRM tanpa benar-benar mengirim")
-    parser.add_argument("--verify-emails", action="store_true",
-                        help="SMTP RCPT verify tiap email (gratis, +latency). "
-                             "Auto-fallback ke MyEmailVerifier/ZeroBounce/Hunter "
-                             "kalau API key di-set.")
-    parser.add_argument("--no-provider-verify", action="store_true",
-                        help="Disable provider API fallback (SMTP only)")
-    parser.add_argument("--push-sheets", action="store_true",
-                        help="Push CSV hasil ke Google Sheets (butuh "
-                             "GOOGLE_SERVICE_ACCOUNT_JSON + GSHEET_SPREADSHEET_ID)")
-    parser.add_argument("--sheets-id", default="",
-                        help="Override GSHEET_SPREADSHEET_ID env")
-    parser.add_argument("--sheets-name", default="",
-                        help="Override GSHEET_SPREADSHEET_NAME env (open by name)")
+    parser.add_argument(
+        "--targets",
+        default="targets.yaml",
+        help="Path to targets.yaml",
+    )
+    parser.add_argument(
+        "--no-extras",
+        action="store_true",
+        help="Skip extras enrichment (emails/revenue/ads/competitors)",
+    )
+    parser.add_argument(
+        "--no-pdf",
+        action="store_true",
+        help="Skip PDF audit generation",
+    )
+    parser.add_argument(
+        "--ads",
+        action="store_true",
+        help="Enable Meta Ad Library scrape (slow, flaky)",
+    )
+    parser.add_argument(
+        "--competitors",
+        action="store_true",
+        help="Enable competitor discovery via DDG (slow)",
+    )
+    parser.add_argument(
+        "--pdf-min-score",
+        type=float,
+        default=0.85,
+        help="Minimum score for PDF audit generation (default 0.85)",
+    )
+    parser.add_argument(
+        "--pdf-top",
+        type=int,
+        default=25,
+        help="Max number of PDF audits to generate (default 25)",
+    )
+    parser.add_argument(
+        "--no-dedup",
+        action="store_true",
+        help="Nonaktifkan SQLite dedup (default: dedup ON)",
+    )
+    parser.add_argument(
+        "--include-seen",
+        action="store_true",
+        help="Ikutkan target domain yang sudah pernah muncul",
+    )
+    parser.add_argument(
+        "--reset-dedup",
+        action="store_true",
+        help="Wipe dedup DB sebelum mulai",
+    )
+    parser.add_argument(
+        "--no-bi",
+        action="store_true",
+        help="Skip Business Intelligence enrichment (default: BI ON)",
+    )
+    parser.add_argument(
+        "--crm",
+        action="store_true",
+        help="Push qualified leads ke CRM webhook (set CRM_*_WEBHOOK_URL)",
+    )
+    parser.add_argument(
+        "--crm-min-score",
+        type=float,
+        default=0.70,
+        help="Min gold_score buat di-push ke CRM (default 0.70)",
+    )
+    parser.add_argument(
+        "--crm-limit",
+        type=int,
+        default=0,
+        help="Max lead yg di-push ke CRM (0 = semua yg lolos)",
+    )
+    parser.add_argument(
+        "--crm-dry-run",
+        action="store_true",
+        help="Cetak payload CRM tanpa benar-benar mengirim",
+    )
+    parser.add_argument(
+        "--verify-emails",
+        action="store_true",
+        help=(
+            "SMTP RCPT verify tiap email (gratis, +latency). "
+            "Auto-fallback ke MyEmailVerifier/ZeroBounce/Hunter "
+            "kalau API key di-set."
+        ),
+    )
+    parser.add_argument(
+        "--no-provider-verify",
+        action="store_true",
+        help="Disable provider API fallback (SMTP only)",
+    )
+    parser.add_argument(
+        "--push-sheets",
+        action="store_true",
+        help=(
+            "Push CSV hasil ke Google Sheets (butuh "
+            "GOOGLE_SERVICE_ACCOUNT_JSON + GSHEET_SPREADSHEET_ID)"
+        ),
+    )
+    parser.add_argument(
+        "--sheets-id",
+        default="",
+        help="Override GSHEET_SPREADSHEET_ID env",
+    )
+    parser.add_argument(
+        "--sheets-name",
+        default="",
+        help="Override GSHEET_SPREADSHEET_NAME env (open by name)",
+    )
     args = parser.parse_args()
 
     exit_code = asyncio.run(_main(args))
