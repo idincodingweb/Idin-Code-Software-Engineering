@@ -2,9 +2,9 @@
 """Dataclasses untuk pipeline. Type-safe, self-documenting.
 
 ARSITEKTUR:
-- Target          → input mentah dari targets.yaml (dipakai loader.py)
-- EnrichmentResult → hasil enrichment per domain (dipakai enrichers.py)
-- QualifiedLead   → scored lead siap export (dipakai qualifier/analyst/export)
+- Target           -> input mentah dari targets.yaml (dipakai loader.py)
+- EnrichmentResult -> hasil enrichment per domain (dipakai enrichers.py)
+- QualifiedLead    -> scored lead siap export (dipakai qualifier/analyst/export)
 """
 from __future__ import annotations
 
@@ -22,6 +22,9 @@ class Target:
     location: Optional[str] = None
     niche: str = "default"
     category: Optional[str] = None
+    brand: Optional[str] = None
+    tier: Optional[int] = None
+    notes: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Convert ke dict — kompatibel dengan enrich_domain() yang expect dict."""
@@ -30,6 +33,9 @@ class Target:
             "location": self.location,
             "niche": self.niche,
             "category": self.category,
+            "brand": self.brand,
+            "tier": self.tier,
+            "notes": self.notes,
         }
 
 
@@ -44,8 +50,13 @@ class EnrichmentResult:
     niche: str
     category: Optional[str]
 
+    # Source metadata from targets.yaml
+    brand: Optional[str] = None
+    tier: Optional[int] = None
+    notes: Optional[str] = None
+
     # Reachability
-    reachable: bool
+    reachable: bool = False
     fail_reason: Optional[str] = None
     response_ms: Optional[int] = None
     status_code: Optional[int] = None
@@ -77,9 +88,6 @@ class EnrichmentResult:
     competitors: list = field(default_factory=list)
 
     # Email Verification (filled by src/email_verifier.py — opsional)
-    # email_statuses: per-email {email: status}
-    # best_email_status: roll-up "valid"/"catch_all"/"risky"/"unknown"/"invalid"
-    # email_verification_method: "smtp" / "myemailverifier" / "zerobounce" / "hunter" / "none"
     email_statuses: dict = field(default_factory=dict)
     best_email_status: str = "unknown"
     email_verification_method: str = "none"
@@ -105,6 +113,11 @@ class QualifiedLead:
     niche: str
     category: Optional[str]
     score: float
+
+    # Source metadata from targets.yaml
+    brand: Optional[str] = None
+    tier: Optional[int] = None
+    notes: Optional[str] = None
 
     platform: Optional[str] = None
     meta_pixel_in_html: bool = False
