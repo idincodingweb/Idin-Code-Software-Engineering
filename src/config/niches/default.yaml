@@ -1,0 +1,134 @@
+metadata:
+  industry_label: "growth-stage businesses"
+  typical_ticket: "$1,000-$10,000 per customer or retainer equivalent"
+  pain_point: "marketing attribution, conversion friction, and revenue capture gaps"
+
+analyst:
+  focus: >
+    Focus on concrete sales opportunities visible from tracking setup, site performance,
+    contactability, and business maturity signals. Prioritize issues an agency can fix fast.
+  mature_business_note: >
+    If the business already looks operationally mature, reduce urgency and say limited opportunity
+    unless there is a clear scale, retention, or attribution gap.
+
+  fallback_reasons_rules:
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      template: "Missing {missing_tracking_count} key tracking signals ({missing_tracking_items}) - major attribution and retargeting gap."
+
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 1
+        - field: missing_tracking_count
+          op: lt
+          value: 3
+      template: "Missing {missing_tracking_items} - incomplete attribution stack."
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Mobile PageSpeed {pagespeed_score}/100 - high bounce risk on paid and organic traffic."
+
+    - conditions:
+        - field: pagespeed_score
+          op: gte
+          value: 50
+        - field: pagespeed_score
+          op: lt
+          value: 70
+      template: "Mobile PageSpeed {pagespeed_score}/100 - room for conversion uplift."
+
+    - conditions:
+        - field: response_ms
+          op: gt
+          value: 3000
+      template: "Server response time {response_ms}ms - signals infrastructure or hosting drag."
+
+    - conditions:
+        - field: platform
+          op: in
+          value: ["wordpress", "woocommerce"]
+      template: "WordPress stack - easy to onboard for tracking and speed fixes."
+
+  fallback_outreach_rules:
+    - priority: 1
+      conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 2
+      template: "Subject: Found {missing_tracking_count} tracking gaps on {brand}'s site - worth a quick chat?"
+
+    - priority: 2
+      conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Subject: {brand}'s mobile site loads at {pagespeed_score}/100 - here's what it may be costing you"
+
+    - priority: 3
+      conditions:
+        - field: response_ms
+          op: gt
+          value: 3000
+      template: "Subject: Quick note about {brand}'s site speed (I think you're losing conversions)"
+
+quality_score:
+  base: 55
+  rules:
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+      points: 12
+
+    - conditions:
+        - field: missing_tracking_count
+          op: eq
+          value: 0
+      points: -10
+
+    - conditions:
+        - field: emails_found_count
+          op: gte
+          value: 1
+      points: 8
+
+    - conditions:
+        - field: mx_valid
+          op: eq
+          value: true
+      points: 6
+
+    - conditions:
+        - field: running_meta_ads
+          op: eq
+          value: true
+      points: 8
+
+    - conditions:
+        - field: revenue_tier
+          op: in
+          value: ["large", "enterprise"]
+      points: 8
+
+    - conditions:
+        - field: social_profiles_count
+          op: gte
+          value: 3
+      points: 4
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      points: 5
+
+    - conditions:
+        - field: platform
+          op: in
+          value: ["wordpress", "woocommerce"]
+      points: 4
