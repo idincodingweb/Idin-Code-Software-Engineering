@@ -2,19 +2,21 @@
 """Business Intelligence Enrichment (zero-budget, HTML-only).
 
 Roadmap v3.4: upgrade dari sekadar revenue tier 1-5 (estimate_revenue_tier di
-extras.py — TETEP ADA) ke profil BI yang lebih kaya, semua di-extract dari
+extras.py - TETEP ADA) ke profil BI yang lebih kaya, semua di-extract dari
 HTML publik (gak butuh API berbayar, sejalan dengan prinsip legal software).
 
 Output dict (semua deterministic & fail-safe):
-    employee_range   : str   -> "1-10" / "11-50" / "51-200" / "201-500" / "500+" / "unknown"
-    location_count   : int   -> estimasi jumlah lokasi/cabang (>=1 kalau reachable)
-    founded_year     : int?  -> tahun berdiri kalau ke-detect ("since 2009", dst)
-    years_in_business: int?  -> turunan dari founded_year
-    social_profiles  : list  -> ["facebook","instagram","linkedin",...]
-    tech_signals     : list  -> ["calendly","stripe","intercom","mailchimp",...]
-    bi_score         : int   -> 0-100 indeks "kematangan/sophistication" bisnis
-
-Setiap fungsi WAJIB graceful — kalau parsing gagal, return default kosong.
+    employee_range            : str   -> "1-10" / "11-50" / "51-200" / "201-500" / "500+" / "unknown"
+    location_count            : int   -> estimasi jumlah lokasi/cabang (>=1 kalau reachable)
+    founded_year              : int?  -> tahun berdiri kalau ke-detect ("since 2009", dst)
+    years_in_business         : int?  -> turunan dari founded_year
+    social_profiles           : list  -> ["facebook","instagram","linkedin",...]
+    tech_signals              : list  -> ["calendly","stripe","intercom","mailchimp",...]
+    bi_score                  : int   -> 0-100 indeks "kematangan/sophistication" bisnis
+    firmographics_confidence  : str   -> high / medium / low
+    firmographics_source      : str   -> free_enrichment
+    detection_notes           : str   -> catatan limitasi enrichment
+    data_quality_flags        : list  -> flag kualitas data
 """
 from __future__ import annotations
 
@@ -50,40 +52,41 @@ _SOCIAL_NOISE = (
 # Tech / tooling detection (substring -> label)
 # ============================================================
 _TECH_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    # Booking / scheduling
     ("calendly", ("calendly.com",)),
     ("acuity", ("acuityscheduling.com", "squarespace-scheduling")),
     ("setmore", ("setmore.com",)),
     ("zocdoc", ("zocdoc.com",)),
-    ("booking_widget", (
-        "book now",
-        "book an appointment",
-        "request appointment",
-        "schedule a consultation",
-        "book online",
-    )),
-    # Chat / support
+    (
+        "booking_widget",
+        (
+            "book now",
+            "book an appointment",
+            "request appointment",
+            "schedule a consultation",
+            "book online",
+        ),
+    ),
     ("intercom", ("intercom.io", "widget.intercom")),
     ("drift", ("drift.com", "js.driftt.com")),
     ("tawk", ("tawk.to",)),
     ("zendesk", ("zendesk.com", "zdassets.com")),
     ("livechat", ("livechatinc.com", "livechat.com")),
     ("hubspot_chat", ("js.hs-scripts.com", "js.usemessages.com")),
-    ("fb_messenger_chat", (
-        "connect.facebook.net/en_us/sdk/xfbml.customerchat",
-        "fb-customerchat",
-    )),
-    # Payments
+    (
+        "fb_messenger_chat",
+        (
+            "connect.facebook.net/en_us/sdk/xfbml.customerchat",
+            "fb-customerchat",
+        ),
+    ),
     ("stripe", ("js.stripe.com", "stripe.com/v3")),
     ("paypal", ("paypal.com/sdk", "paypalobjects.com")),
     ("square", ("squareup.com", "square.site")),
-    # Email / marketing automation
     ("mailchimp", ("mailchimp.com", "list-manage.com", "chimpstatic.com")),
     ("klaviyo", ("klaviyo.com", "static.klaviyo.com")),
     ("activecampaign", ("activehosted.com", "activecampaign.com")),
     ("convertkit", ("convertkit.com", "ck.page")),
     ("hubspot", ("js.hsforms.net", "hs-analytics.net")),
-    # Reviews / trust
     ("trustpilot", ("trustpilot.com",)),
     ("google_reviews", ("google.com/maps", "g.page/")),
 )
@@ -118,6 +121,21 @@ _MULTILOC_KEYWORDS = (
     "branches",
     "multiple locations",
     "view all locations",
+)
+
+_FASHION_KEYWORDS = (
+    "fashion",
+    "apparel",
+    "footwear",
+    "streetwear",
+    "batik",
+    "hijab",
+    "activewear",
+    "retail",
+    "store",
+    "shopping",
+    "catalog",
+    "collection",
 )
 
 
@@ -158,37 +176,6 @@ def _detect_founded_year(html: str) -> Optional[int]:
     return best
 
 
-def _detect_employee_range(html: str, html_low: str, location_count: int) -> str:
-    num: Optional[int] = None
-    match = _EMPLOYEE_COUNT_RE.search(html) or _EMPLOYEE_PLUS_RE.search(html)
-    if match:
-        try:
-            num = int(match.group(1))
-        except (TypeError, ValueError):
-            num = None
-    if num is not None:
-        return _bucket_employees(num)
-
-    has_careers = any(
-        keyword in html_low
-        for keyword in (
-            "careers",
-            "join our team",
-            "we're hiring",
-            "we are hiring",
-            "open positions",
-            "job openings",
-        )
-    )
-    if location_count >= 5:
-        return "201-500"
-    if location_count >= 2:
-        return "51-200"
-    if has_careers:
-        return "11-50"
-    return "1-10"
-
-
 def _bucket_employees(n: int) -> str:
     if n <= 10:
         return "1-10"
@@ -221,6 +208,42 @@ def _detect_location_count(html: str, html_low: str) -> int:
     return 1
 
 
+def _detect_employee_range(
+    html: str,
+    html_low: str,
+    location_count: int,
+) -> tuple[str, str]:
+    num: Optional[int] = None
+    match = _EMPLOYEE_COUNT_RE.search(html) or _EMPLOYEE_PLUS_RE.search(html)
+    if match:
+        try:
+            num = int(match.group(1))
+        except (TypeError, ValueError):
+            num = None
+    if num is not None:
+        return _bucket_employees(num), "explicit"
+
+    has_careers = any(
+        keyword in html_low
+        for keyword in (
+            "careers",
+            "join our team",
+            "we're hiring",
+            "we are hiring",
+            "open positions",
+            "job openings",
+        )
+    )
+
+    if location_count >= 5:
+        return "201-500", "heuristic_multi_location"
+    if location_count >= 2:
+        return "51-200", "heuristic_multi_location"
+    if has_careers:
+        return "11-50", "heuristic_careers_page"
+    return "1-10", "heuristic_default"
+
+
 def _compute_bi_score(
     *,
     social_profiles: list[str],
@@ -229,7 +252,6 @@ def _compute_bi_score(
     employee_range: str,
     location_count: int,
 ) -> int:
-    """Indeks sophistication 0-100 (makin tinggi = bisnis makin mapan)."""
     score = 0.0
     score += min(len(social_profiles), 4) * 6.0
     score += min(len(tech_signals), 6) * 6.0
@@ -247,6 +269,69 @@ def _compute_bi_score(
     return max(0, min(100, int(round(score))))
 
 
+def _is_fashion_like_from_text(text: str) -> bool:
+    low = text.lower()
+    return any(keyword in low for keyword in _FASHION_KEYWORDS)
+
+
+def _infer_firmographics_confidence(
+    *,
+    employee_source: str,
+    social_profiles: list[str],
+    tech_signals: list[str],
+    founded_year: Optional[int],
+    location_count: int,
+    html_low: str,
+) -> tuple[str, list[str]]:
+    flags: list[str] = []
+
+    if employee_source != "explicit":
+        flags.append("firmographics_estimated")
+
+    if founded_year is None:
+        flags.append("founded_year_missing")
+
+    if not social_profiles:
+        flags.append("social_signals_sparse")
+
+    if not tech_signals:
+        flags.append("tech_signals_sparse")
+
+    if _is_fashion_like_from_text(html_low) and employee_source == "heuristic_default":
+        flags.append("fashion_headcount_may_be_underestimated")
+
+    if employee_source == "explicit":
+        if founded_year is not None or location_count >= 2 or len(social_profiles) >= 2:
+            return "high", flags
+        return "medium", flags
+
+    evidence = 0
+    if founded_year is not None:
+        evidence += 1
+    if len(social_profiles) >= 2:
+        evidence += 1
+    if len(tech_signals) >= 2:
+        evidence += 1
+    if location_count >= 2:
+        evidence += 1
+
+    if evidence >= 3:
+        return "medium", flags
+    return "low", flags
+
+
+def _build_detection_notes(*, firmographics_confidence: str, employee_source: str) -> str:
+    notes = [
+        "Firmographics estimated from public HTML and zero-budget heuristics.",
+        "Employee size and revenue proxies may be understated for larger brands.",
+    ]
+    if employee_source != "explicit":
+        notes.append("No explicit employee count found on-page.")
+    if firmographics_confidence == "low":
+        notes.append("Use with caution before client-facing audit claims.")
+    return " ".join(notes)
+
+
 def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
     """Extract profil BI dari HTML. Selalu return dict lengkap (fail-safe)."""
     default: dict[str, Any] = {
@@ -257,6 +342,12 @@ def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
         "social_profiles": [],
         "tech_signals": [],
         "bi_score": 0,
+        "firmographics_confidence": "low",
+        "firmographics_source": "free_enrichment",
+        "detection_notes": (
+            "Firmographics unavailable. Public HTML signals were missing or insufficient."
+        ),
+        "data_quality_flags": ["firmographics_unavailable"],
     }
     if not html:
         return default
@@ -267,10 +358,15 @@ def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
         tech = _detect_tech(html_low)
         founded = _detect_founded_year(html)
         location_count = _detect_location_count(html, html_low)
-        employee_range = _detect_employee_range(html, html_low, location_count)
+        employee_range, employee_source = _detect_employee_range(
+            html,
+            html_low,
+            location_count,
+        )
         years = None
         if founded is not None:
             years = max(0, datetime.utcnow().year - founded)
+
         bi_score = _compute_bi_score(
             social_profiles=social,
             tech_signals=tech,
@@ -278,6 +374,19 @@ def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
             employee_range=employee_range,
             location_count=location_count,
         )
+        firmographics_confidence, flags = _infer_firmographics_confidence(
+            employee_source=employee_source,
+            social_profiles=social,
+            tech_signals=tech,
+            founded_year=founded,
+            location_count=location_count,
+            html_low=html_low,
+        )
+        detection_notes = _build_detection_notes(
+            firmographics_confidence=firmographics_confidence,
+            employee_source=employee_source,
+        )
+
         return {
             "employee_range": employee_range,
             "location_count": location_count,
@@ -286,6 +395,10 @@ def enrich_business_intelligence(html: str, domain: str = "") -> dict[str, Any]:
             "social_profiles": social,
             "tech_signals": tech,
             "bi_score": bi_score,
+            "firmographics_confidence": firmographics_confidence,
+            "firmographics_source": "free_enrichment",
+            "detection_notes": detection_notes,
+            "data_quality_flags": flags,
         }
     except Exception as e:  # noqa: BLE001
         print(f"[bi] {domain} BI enrich fail: {type(e).__name__}: {e}")
@@ -313,10 +426,7 @@ def _is_fashion_like(lead: Any) -> bool:
 
 
 def build_bi_summary(lead: Any) -> str:
-    """Fallback deterministic BI summary (1-2 kalimat) dari field lead.
-
-    Dipakai analyst.py kalau AI gak ngasih bi_summary.
-    """
+    """Fallback deterministic BI summary (1-2 kalimat) dari field lead."""
     brand = (getattr(lead, "brand", None) or "").strip()
     tier = getattr(lead, "tier", None)
     founded = getattr(lead, "founded_year", None)
@@ -328,6 +438,13 @@ def build_bi_summary(lead: Any) -> str:
     revenue_tier = (getattr(lead, "revenue_tier", "") or "").strip()
     platform = (getattr(lead, "platform", "") or "").strip()
     notes = (getattr(lead, "notes", "") or "").strip()
+    firmo_conf = (getattr(lead, "firmographics_confidence", "low") or "low").strip().lower()
+
+    confidence_note = ""
+    if firmo_conf == "low":
+        confidence_note = " Public company-size signals are estimated only."
+    elif firmo_conf == "medium":
+        confidence_note = " Company-size signals are partially inferred from public web data."
 
     if _is_fashion_like(lead):
         parts: list[str] = []
@@ -369,9 +486,10 @@ def build_bi_summary(lead: Any) -> str:
             parts.append(notes)
 
         if not parts:
-            return "Fashion/e-commerce brand with limited public BI signals detected."
+            return f"Fashion/e-commerce brand with limited public BI signals detected.{confidence_note}".strip()
 
-        return ". ".join(p[0].upper() + p[1:] for p in parts if p) + "."
+        summary = ". ".join(p[0].upper() + p[1:] for p in parts if p) + "."
+        return f"{summary}{confidence_note}".strip()
 
     parts = []
 
@@ -399,6 +517,7 @@ def build_bi_summary(lead: Any) -> str:
         parts.append(f"revenue tier: {revenue_tier}")
 
     if not parts:
-        return "Limited public BI signals detected."
+        return f"Limited public BI signals detected.{confidence_note}".strip()
 
-    return ". ".join(p[0].upper() + p[1:] for p in parts) + "."
+    summary = ". ".join(p[0].upper() + p[1:] for p in parts) + "."
+    return f"{summary}{confidence_note}".strip()
