@@ -49,19 +49,40 @@ _HEADERS = {
     "Upgrade-Insecure-Requests": "1",
 }
 
+_JS_FRAMEWORK_HINTS = (
+    "__next",
+    "_next/static",
+    "__nuxt",
+    "webpack",
+    "vite",
+    "react",
+    "hydration",
+    "window.__initial_state__",
+    "window.__nuxt__",
+    "defer",
+    "type=\"module\"",
+)
+
+_FASHION_HINTS = (
+    "fashion",
+    "apparel",
+    "footwear",
+    "streetwear",
+    "batik",
+    "hijab",
+    "collection",
+    "lookbook",
+    "shop now",
+    "cart",
+    "checkout",
+)
+
 
 # ============================================================
 # Public API
 # ============================================================
 async def enrich_all(targets: list[dict]) -> list[EnrichmentResult]:
-    """Enrich SEMUA targets concurrent dengan semaphore.
-
-    Args:
-        targets: list of dict {domain, location, niche, category, brand, tier, notes}
-
-    Returns:
-        list of EnrichmentResult (1:1 dengan targets, fail = reachable=False)
-    """
+    """Enrich SEMUA targets concurrent dengan semaphore."""
     if not targets:
         return []
 
@@ -124,19 +145,35 @@ async def enrich_domain(target: dict) -> EnrichmentResult:
             has_ga4=False,
             has_gtm=False,
             has_google_ads=False,
+            pixel_detection_method="html_regex",
+            pixel_confidence="low",
+            firmographics_confidence="low",
+            data_confidence="low",
+            firmographics_source="free_enrichment",
+            detection_notes="Domain unreachable. No pixel or firmographic verification possible.",
+            data_quality_flags=["unreachable", "pixel_detection_unavailable", "firmographics_unavailable"],
             pagespeed_score=None,
             lcp_ms=None,
         )
 
     pixels = _detect_pixels(html)
     platform = _detect_platform(html)
+    pixel_confidence, pixel_flags = _infer_pixel_confidence(
+        html=html,
+        niche=niche,
+        category=category,
+        platform=platform,
+        pixels=pixels,
+    )
+    pixel_notes = _build_pixel_detection_notes(pixel_confidence)
+
     pagespeed_score, lcp_ms = await _fetch_pagespeed(domain)
 
     print(
         f"[enrich] OK {domain} | platform={platform or 'unknown'} | "
         f"pixels={sum(pixels.values())}/5 | ps={pagespeed_score} | "
         f"lcp={lcp_ms}ms | rt={response_ms}ms | "
-        f"url={final_url or 'n/a'}"
+        f"url={final_url or 'n/a'} | pixel_conf={pixel_confidence}"
     )
 
     return EnrichmentResult(
@@ -157,6 +194,13 @@ async def enrich_domain(target: dict) -> EnrichmentResult:
         has_ga4=pixels["ga4"],
         has_gtm=pixels["gtm"],
         has_google_ads=pixels["google_ads"],
+        pixel_detection_method="html_regex",
+        pixel_confidence=pixel_confidence,
+        firmographics_confidence="low",
+        data_confidence=pixel_confidence,
+        firmographics_source="free_enrichment",
+        detection_notes=pixel_notes,
+        data_quality_flags=pixel_flags,
         pagespeed_score=pagespeed_score,
         lcp_ms=lcp_ms,
         raw_html=html,
@@ -301,6 +345,57 @@ def _detect_pixels(html: str) -> dict[str, bool]:
 
 def _any_match(html: str, patterns: list[re.Pattern]) -> bool:
     return any(pattern.search(html) for pattern in patterns)
+
+
+def _infer_pixel_confidence(
+    *,
+    html: str,
+    niche: str | None,
+    category: str | None,
+    platform: str | None,
+    pixels: dict[str, bool],
+) -> tuple[str, list[str]]:
+    flags: list[str] = ["pixel_detection_regex_only"]
+
+    found_count = sum(1 for value in pixels.values() if value)
+    html_low = html.lower()
+    js_heavy = any(hint in html_low for hint in _JS_FRAMEWORK_HINTS)
+    fashion_like = _is_fashion_like_text(f"{niche or ''} {category or ''} {html_low[:2000]}")
+    ecommerce_like = platform in {"shopify", "woocommerce", "bigcommerce"}
+
+    if found_count >= 3:
+        if js_heavy:
+            flags.append("js_rendered_site_partial_visibility")
+            return "medium", flags
+        return "high", flags
+
+    if found_count >= 1:
+        flags.append("partial_pixel_visibility")
+        return "medium", flags
+
+    flags.append("pixels_not_detected")
+    if js_heavy:
+        flags.append("possible_js_loaded_pixels")
+    if fashion_like or ecommerce_like:
+        flags.append("high_false_negative_risk_for_pixels")
+    return "low", flags
+
+
+def _build_pixel_detection_notes(pixel_confidence: str) -> str:
+    notes = [
+        "Pixel detection is based on static HTML regex only.",
+        "JavaScript-executed tags may not be visible to this scanner.",
+    ]
+    if pixel_confidence == "low":
+        notes.append("Absence of detected pixels should be treated as unverified, not definitive.")
+    elif pixel_confidence == "medium":
+        notes.append("Detected stack may be partial.")
+    return " ".join(notes)
+
+
+def _is_fashion_like_text(text: str) -> bool:
+    low = text.lower()
+    return any(keyword in low for keyword in _FASHION_HINTS)
 
 
 # ============================================================
