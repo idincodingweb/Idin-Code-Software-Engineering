@@ -1,215 +1,119 @@
 targets:
   # ============================================================
-  # TIER 1: BRAND FASHION BESAR INDONESIA — BUDGET IKLAN GEDE
-  # Paling pulen buat agency performance marketing & Meta Ads
+  # NICHE: SKINCARE / BEAUTY INDONESIA
   # ============================================================
 
-  - domain: erigostore.co.id
-    brand: Erigo
-    niche: fashion_apparel
-    category: streetwear
+  # TIER 1 — Market Leader, Budget Iklan Gede Banget
+  - domain: skintific.id
+    brand: Skintific
+    niche: skincare_beauty
+    category: skincare
+    tier: 1
+    location: Indonesia
+    notes: "Market leader Shopee (7-9% share), serum & moisturizer terlaris"
+
+  - domain: somethinc.com
+    brand: Somethinc
+    niche: skincare_beauty
+    category: skincare_makeup
+    tier: 1
+    location: Indonesia
+    notes: "Skincare lokal top, penjualan Rp53M+, aktif Meta & TikTok ads"
+
+  - domain: msglowid.com
+    brand: MS Glow
+    niche: skincare_beauty
+    category: skincare_kosmetik
+    tier: 1
+    location: Indonesia (Malang)
+    notes: "Top 5 nasional, legacy brand skincare, budget iklan gede"
+
+  - domain: wardahbeauty.com
+    brand: Wardah
+    niche: skincare_beauty
+    category: beauty_halal
     tier: 1
     location: Indonesia (Jakarta)
-    notes: "Streetwear terbesar Indo, aktif iklan Meta & TikTok"
+    notes: "Pionir skincare halal Indonesia, brand legacy terbesar"
 
-  - domain: 3second.co.id
-    brand: 3Second
-    niche: fashion_apparel
-    category: casual_wear
-    tier: 1
-    location: Indonesia (Bandung)
-    notes: "Casual wear populer, omzet besar, iklan gencar"
-
-  - domain: cottonink.co.id
-    brand: CottonInk
-    niche: fashion_apparel
-    category: women_modest_wear
-    tier: 1
-    location: Indonesia (Jakarta)
-    notes: "Women fashion established, budget iklan besar"
-
-  - domain: screamous.com
-    brand: Screamous
-    niche: fashion_apparel
-    category: daily_wear
+  - domain: scarlettofficial.id
+    brand: Scarlett
+    niche: skincare_beauty
+    category: skincare_bodycare
     tier: 1
     location: Indonesia
-    notes: "Daily wear brand, aktif e-commerce & iklan digital"
+    notes: "Brand skincare & body care paling dicintai, endorser artis"
 
-  - domain: thankyou.co
-    brand: Thankyou
-    niche: fashion_apparel
-    category: personal_care_fashion
-    tier: 1
-    location: Indonesia
-    notes: "Personal care, heavy Meta & TikTok ads"
-
-  - domain: 3mongkis.com
-    brand: 3Mongkis
-    niche: fashion_apparel
-    category: streetwear
-    tier: 1
-    location: Indonesia (Jakarta)
-    notes: "Streetwear brand, aktif di Shopee/Tokopedia + website"
-
-  - domain: bateeq.com
-    brand: Bateeq
-    niche: fashion_apparel
-    category: batik_womenswear
-    tier: 1
-    location: Indonesia
-    notes: "Brand batik modern, ada di mall2 besar Indonesia"
-
-  - domain: danarhadibatik.com
-    brand: Danar Hadi
-    niche: fashion_apparel
-    category: batik_premium
-    tier: 1
-    location: Indonesia (Solo)
-    notes: "Batik premium legacy brand, market high-end"
-
-  # ============================================================
-  # TIER 2: BRAND FASHION MEDIUM — SUDAH PUNYA WEBSITE SENDIRI
-  # Bagus untuk agency yang cari klien secondary
-  # ============================================================
-
-  - domain: shopatvelvet.com
-    brand: Velvet
-    niche: fashion_apparel
-    category: women_fashion
+  # TIER 2 — Brand Kuat, Lagi Naik Daun
+  - domain: glad2glow.com
+    brand: Glad2Glow
+    niche: skincare_beauty
+    category: skincare
     tier: 2
     location: Indonesia
-    notes: "Women fashion, website sendiri, aktif iklan"
+    notes: "Top 3 Shopee Q1 2025, pertumbuhan cepat, aktif e-commerce"
 
-  - domain: simpulrapi.com
-    brand: Simpul Rapi
-    niche: fashion_apparel
-    category: mens_formal
+  - domain: azarinecosmetic.com
+    brand: Azarine
+    niche: skincare_beauty
+    category: skincare_sunscreen
     tier: 2
     location: Indonesia
-    notes: "Men's formal/semi-formal, target pekerja kantoran"
+    notes: "Market leader sunscreen (9.4% share), natural & herbal"
 
-  - domain: heylocal.id
-    brand: Heylocal
-    niche: fashion_apparel
-    category: multi_brand_fashion
+  - domain: avoskinbeauty.com
+    brand: Avoskin
+    niche: skincare_beauty
+    category: sustainable_beauty
     tier: 2
     location: Indonesia
-    notes: "Multi-brand fashion lokal, platform kurasi"
+    notes: "Sustainable beauty, brand kuat di skincare treatment"
 
-  - domain: dayandnight-shop.com
-    brand: Day & Night
-    niche: fashion_apparel
-    category: casual_wear
+  - domain: hanasui.id
+    brand: Hanasui
+    niche: skincare_beauty
+    category: skincare
     tier: 2
     location: Indonesia
-    notes: "Casual daily wear, aktif sosial media"
+    notes: "Top 5 Shopee, distribusi luas (offline & online)"
 
-  - domain: seratuskapas.com
-    brand: Seratus Kapas
-    niche: fashion_apparel
-    category: women_fashion
+  - domain: theoriginote.com
+    brand: The Originote
+    niche: skincare_beauty
+    category: skincare_affordable
     tier: 2
     location: Indonesia
-    notes: "Women fashion brand, emerging"
+    notes: "Affordable skincare booming, lagi naik daun di TikTok Shop"
 
-  - domain: plieindonesia.com
-    brand: Plie Indonesia
-    niche: fashion_apparel
-    category: maternity_fashion
+  - domain: whitelab.co.id
+    brand: Whitelab
+    niche: skincare_beauty
+    category: skincare_treatment
     tier: 2
     location: Indonesia
-    notes: "Maternity fashion, niche spesifik unik"
+    notes: "Skincare treatment, emerging brand, aktif iklan"
 
-  - domain: torch.id
-    brand: Torch
-    niche: fashion_apparel
-    category: activewear
-    tier: 2
-    location: Indonesia (Bandung)
-    notes: "Activewear/sport, brand kuat di kategorynya"
-
-  - domain: eigeradventure.com
-    brand: Eiger
-    niche: fashion_apparel
-    category: outdoor_activewear
-    tier: 2
-    location: Indonesia (Bandung)
-    notes: "Outdoor gear & fashion, 237+ toko fisik"
-
-  - domain: theexecutive.co.id
-    brand: The Executive
-    niche: fashion_apparel
-    category: formal_batik_pria
-    tier: 2
-    location: Indonesia
-    notes: "Formal & batik pria, established brand"
-
-  - domain: sepatucompass.com
-    brand: Compass
-    niche: fashion_apparel
-    category: footwear
-    tier: 2
-    location: Indonesia (Bandung)
-    notes: "Sepatu casual premium, brand legacy"
-
-  - domain: ventela.com
-    brand: Ventela
-    niche: fashion_apparel
-    category: footwear
-    tier: 2
-    location: Indonesia (Bandung)
-    notes: "Canvas shoes, populer di anak muda"
-
-  - domain: buttonscarves.com
-    brand: Buttonscarves
-    niche: fashion_apparel
-    category: hijab_women_fashion
-    tier: 2
-    location: Indonesia
-    notes: "Hijab & aksesoris fashion wanita"
-
-  # ============================================================
-  # TIER 3: EMERGING / PLATFORM — MASIH BISA DI-SCRAPE
-  # Cocok buat volume ato secondary outreach
-  # ============================================================
-
-  - domain: voila.id
-    brand: Voila
-    niche: fashion_apparel
-    category: fashion_marketplace
+  # TIER 3 — Emerging / Multinasional
+  - domain: dearmebeauty.com
+    brand: Dear Me Beauty
+    niche: skincare_beauty
+    category: beauty
     tier: 3
     location: Indonesia
-    notes: "Fashion marketplace, banyak brand tenant"
+    notes: "Beauty brand, website sendiri, emerging"
 
-  - domain: mapclub.com
-    brand: MAP Club
-    niche: fashion_apparel
-    category: fashion_retail
+  - domain: gloglowingskincare.com
+    brand: Gloglowing
+    niche: skincare_beauty
+    category: skincare
     tier: 3
     location: Indonesia
-    notes: "Fashion retail membership program"
+    notes: "Skincare emerging, aktif di Shopee & TikTok Shop"
 
-  - domain: outfit.id
-    brand: Outfit.id
-    niche: fashion_apparel
-    category: fashion_aggregator
+  - domain: garnier.co.id
+    brand: Garnier
+    niche: skincare_beauty
+    category: skincare_multinasional
     tier: 3
     location: Indonesia
-    notes: "Fashion aggregator & konten"
-
-  - domain: league-world.com
-    brand: League
-    niche: fashion_apparel
-    category: footwear
-    tier: 3
-    location: Indonesia (Jakarta)
-    notes: "Sepatu & apparel, emerging brand"
-
-  - domain: executive.co.id
-    brand: Executive
-    niche: fashion_apparel
-    category: fashion_multi_brand
-    tier: 3
-    location: Indonesia
-    notes: "Multi-brand fashion (jangan confuse dengan The Executive)"
+    notes: "L'Oreal group, budget iklan multinasional, skincare #1 di Indo"
