@@ -3,11 +3,13 @@
 
 Return summary dict yang dipakai run.py.
 BI enrichment sekarang tier-aware & marketplace-detecting.
+Export UTAMA: Google Sheets (rapi, shareable) + fallback CSV.
 """
 from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime
 from typing import Any
 
 from src.analyst import enrich_with_ai_analyst
@@ -16,6 +18,7 @@ from src.crm_webhooks import push_leads_to_crm
 from src.dedup_db import DedupDB
 from src.enrichers import enrich_all
 from src.export import export_tiered_csvs
+from src.export_sheets import export_to_sheets
 from src.extras import enrich_extras_batch
 from src.loader import load_targets
 from src.pdf_audit import generate_pdf_audits
@@ -42,6 +45,7 @@ async def run_pipeline(
     crm_dry_run: bool = False,
     enable_email_verify: bool = False,
     email_verify_use_providers: bool = True,
+    enable_sheets_export: bool = True,
     enable_sheets_push: bool = False,
     sheets_spreadsheet_id: str = "",
     sheets_spreadsheet_name: str = "",
@@ -50,6 +54,7 @@ async def run_pipeline(
     
     Tier-aware BI enrichment: tier 1 brands diperlakukan sebagai established,
     marketplace signals di-deteksi untuk confidence boost.
+    Export UTAMA sekarang Google Sheets (rapi, shareable).
     """
     start_ts = time.perf_counter()
 
@@ -101,6 +106,7 @@ async def run_pipeline(
                 "reachable": 0,
                 "qualified": 0,
                 "output_files": [],
+                "sheets_url": None,
                 "pdf_files": [],
                 "duration_seconds": duration,
             }
@@ -154,6 +160,7 @@ async def run_pipeline(
     if not reachable:
         print("\n[pipeline] FATAL: 0 reachable domains.")
         output_files: list[str] = []
+        sheets_url: str | None = None
         try:
             output_files = export_tiered_csvs([])
         except Exception as e:  # noqa: BLE001
@@ -165,6 +172,7 @@ async def run_pipeline(
             "reachable": 0,
             "qualified": 0,
             "output_files": output_files,
+            "sheets_url": sheets_url,
             "pdf_files": [],
             "duration_seconds": duration,
         }
@@ -179,14 +187,14 @@ async def run_pipeline(
             domain = getattr(enrichment, "domain", "")
             tier = getattr(enrichment, "tier", None)
             brand = getattr(enrichment, "brand", None)
-            
+
             bi_data = enrich_business_intelligence(
                 html=raw_html,
                 domain=domain,
                 tier=tier,
                 brand=brand,
             )
-            
+
             # Copy all BI fields ke enrichment
             setattr(enrichment, "employee_range", bi_data.get("employee_range", "unknown"))
             setattr(enrichment, "location_count", bi_data.get("location_count", 0))
@@ -199,7 +207,7 @@ async def run_pipeline(
             setattr(enrichment, "firmographics_confidence", bi_data.get("firmographics_confidence", "low"))
             setattr(enrichment, "firmographics_source", bi_data.get("firmographics_source", "free_enrichment"))
             setattr(enrichment, "detection_notes", bi_data.get("detection_notes", ""))
-            
+
             # Merge data_quality_flags dari pixel detection + bi enrich
             existing_flags = getattr(enrichment, "data_quality_flags", []) or []
             bi_flags = bi_data.get("data_quality_flags", [])
@@ -237,17 +245,71 @@ async def run_pipeline(
 
     qualified.sort(key=lambda x: x.score, reverse=True)
 
-    output_files = export_tiered_csvs(qualified)
+    # ============================================================
+    # EXPORT: PRIMARY = GOOGLE SHEETS (RAPI), FALLBACK = CSV
+    # ============================================================
+    output_files: list[str] = []
+    sheets_url: str | None = None
 
+    if enable_sheets_export:
+        print(f"\n[pipeline] Exporting to Google Sheets (rapi, shareable)...")
+        try:
+            sheets_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            sheets_name = sheets_spreadsheet_name or f"Idincode Research — {sheets_timestamp}"
+
+            sheets_result = export_to_sheets(
+                qualified,
+                spreadsheet_id=sheets_spreadsheet_id or "",
+                spreadsheet_name=sheets_name,
+            )
+
+            sheets_url = sheets_result.get("spreadsheet_url")
+            sheets_id = sheets_result.get("spreadsheet_id")
+            sheets_created = sheets_result.get("sheets_created", [])
+
+            print(f"[sheets] ✅ Spreadsheet created/updated: {sheets_id}")
+            print(f"[sheets] 📊 Sheets: {', '.join(sheets_created)}")
+            print(f"[sheets] 🔗 URL: {sheets_url}")
+
+            output_files.append(sheets_url)
+
+        except Exception as e:  # noqa: BLE001
+            print(f"[sheets] ❌ FALLBACK to CSV (reason: {type(e).__name__}: {str(e)[:100]})")
+            try:
+                output_files = export_tiered_csvs(qualified)
+            except Exception as e2:  # noqa: BLE001
+                print(f"[export] CSV export juga gagal: {e2}")
+                output_files = []
+    else:
+        # CSV export (backward compatible)
+        print(f"\n[pipeline] Exporting to CSV (legacy)...")
+        try:
+            output_files = export_tiered_csvs(qualified)
+        except Exception as e:  # noqa: BLE001
+            print(f"[export] CSV export failed: {e}")
+            output_files = []
+
+    # ============================================================
+    # PDF AUDIT GENERATION
+    # ============================================================
     pdf_files: list[str] = []
     if enable_pdf:
-        pdf_files = generate_pdf_audits(
-            qualified,
-            output_dir="output/pdf",
-            only_top=pdf_top_n,
-            min_score=pdf_min_score,
-        )
+        print(f"\n[pipeline] Generating PDF audits (top {pdf_top_n}, min score {pdf_min_score})...")
+        try:
+            pdf_files = generate_pdf_audits(
+                qualified,
+                output_dir="output/pdf",
+                only_top=pdf_top_n,
+                min_score=pdf_min_score,
+            )
+            print(f"[pdf] ✅ Generated {len(pdf_files)} audit PDFs")
+        except Exception as e:  # noqa: BLE001
+            print(f"[pdf] WARN: PDF generation failed: {e}")
+            pdf_files = []
 
+    # ============================================================
+    # CRM WEBHOOK PUSH (OPTIONAL)
+    # ============================================================
     crm_summary: dict[str, Any] | None = None
     if enable_crm:
         print(
@@ -261,35 +323,52 @@ async def run_pipeline(
                 limit=crm_limit,
                 dry_run=crm_dry_run,
             )
+            print(f"[crm] ✅ Push successful: {crm_summary}")
         except Exception as e:  # noqa: BLE001
-            print(f"[crm] WARN: push failed: {type(e).__name__}: {e}")
+            print(f"[crm] ❌ Push failed: {type(e).__name__}: {e}")
             crm_summary = {"error": f"{type(e).__name__}: {e}"}
 
-    sheets_summary: dict[str, Any] | None = None
-    if enable_sheets_push:
-        print("\n[pipeline] Google Sheets push...")
+    # ============================================================
+    # GOOGLE SHEETS PUSH (PUSH CSV BACKUP TO EXISTING SHEET)
+    # ============================================================
+    sheets_push_summary: dict[str, Any] | None = None
+    if enable_sheets_push and output_files:
+        print("\n[pipeline] Pushing CSV backup to existing Google Sheet...")
         try:
-            sheets_summary = push_csvs_to_sheets(
+            sheets_push_summary = push_csvs_to_sheets(
                 output_files,
                 spreadsheet_id=sheets_spreadsheet_id or None,
                 spreadsheet_name=sheets_spreadsheet_name or None,
             )
+            print(f"[sheets_push] ✅ Pushed: {sheets_push_summary}")
         except Exception as e:  # noqa: BLE001
-            print(f"[sheets] WARN: push failed: {type(e).__name__}: {e}")
-            sheets_summary = {"error": f"{type(e).__name__}: {e}"}
+            print(f"[sheets_push] WARN: Push failed: {type(e).__name__}: {e}")
+            sheets_push_summary = {"error": f"{type(e).__name__}: {e}"}
 
+    # ============================================================
+    # DEDUP PERSISTENCE
+    # ============================================================
     if db:
         for enrichment in reachable:
             domain = getattr(enrichment, "domain", "")
             if domain:
                 db.mark_lead(domain)
         stats = db.stats()
-        print(f"[dedup] persisted. total leads_seen={stats['leads_seen']}")
+        print(f"\n[dedup] ✅ Persisted. Total leads_seen={stats['leads_seen']}")
 
+    # ============================================================
+    # SUMMARY & TIMING
+    # ============================================================
     duration = round(time.perf_counter() - start_ts, 2)
 
     print("\n" + "=" * 60)
-    print("Pipeline complete!")
+    print("Pipeline Complete! ✅")
+    print("=" * 60)
+    if sheets_url:
+        print(f"📊 Google Sheets: {sheets_url}")
+    if pdf_files:
+        print(f"📄 PDF Audits: {len(pdf_files)} files generated")
+    print(f"⏱️  Total time: {duration}s")
     print("=" * 60)
 
     return {
@@ -297,14 +376,16 @@ async def run_pipeline(
         "reachable": len(reachable),
         "qualified": len(qualified),
         "output_files": output_files,
+        "sheets_url": sheets_url,
         "pdf_files": pdf_files,
         "crm": crm_summary,
-        "sheets": sheets_summary,
+        "sheets_push": sheets_push_summary,
         "duration_seconds": duration,
     }
 
 
 def main() -> None:
+    """Main entry point untuk CLI."""
     asyncio.run(run_pipeline())
 
 
