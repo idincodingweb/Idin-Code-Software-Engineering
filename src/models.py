@@ -108,6 +108,7 @@ class EnrichmentResult:
     years_in_business: Optional[int] = None
     social_profiles: list = field(default_factory=list)
     tech_signals: list = field(default_factory=list)
+    marketplaces: list = field(default_factory=list)
     bi_score: int = 0
 
 
@@ -178,6 +179,7 @@ class QualifiedLead:
     years_in_business: Optional[int] = None
     social_profiles: list = field(default_factory=list)
     tech_signals: list = field(default_factory=list)
+    marketplaces: list = field(default_factory=list)
     bi_score: int = 0
 
     # Rank (assigned by export.py)
