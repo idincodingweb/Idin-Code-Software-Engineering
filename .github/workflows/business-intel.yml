@@ -28,42 +28,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify file structure
-        run: |
-          echo "=== Working dir ==="
-          pwd
-          echo "=== Root files ==="
-          ls -la
-          echo "=== src/ files ==="
-          ls -la src/ || echo "src/ not found"
-          echo "=== targets.yaml head ==="
-          head -30 targets.yaml || echo "targets.yaml not found"
-
       - name: Run business intelligence pipeline
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT }}
-          GSHEET_SPREADSHEET_ID: ${{ secrets.GSHEET_SPREADSHEET_ID }}
-          BUSINESS_INTEL_AD_API_URL: ${{ secrets.BUSINESS_INTEL_AD_API_URL }}
-          BUSINESS_INTEL_AD_API_KEY: ${{ secrets.BUSINESS_INTEL_AD_API_KEY }}
-        run: |
-          if [ -n "$GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT" ]; then
-            python run_business_intel.py --enable-sheets-export
-          else
-            echo "ℹ️  GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT not set, running without Sheets export"
-            python run_business_intel.py
-          fi
+        run: python run_business_intel.py
 
       - name: List output files
         if: always()
         run: |
           echo "=== Output files ==="
-          ls -la artifacts/business_intel/ || echo "No outputs generated"
+          ls -la artifacts/business_intel/ || echo "No outputs"
 
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: business-intel-artifacts
+          name: business-intel-csv
           path: artifacts/business_intel/
           if-no-files-found: warn
           retention-days: 30
