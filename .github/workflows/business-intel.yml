@@ -1,0 +1,46 @@
+name: Apex Business Intelligence | By Idincode
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: &apos;17 2 * * 1&apos;
+
+jobs:
+  run-business-intel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: &apos;3.11&apos;
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run business intelligence pipeline
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT }}
+          GSHEET_SPREADSHEET_ID: ${{ secrets.GSHEET_SPREADSHEET_ID }}
+          BUSINESS_INTEL_AD_API_URL: ${{ secrets.BUSINESS_INTEL_AD_API_URL }}
+          BUSINESS_INTEL_AD_API_KEY: ${{ secrets.BUSINESS_INTEL_AD_API_KEY }}
+        run: |
+          python run_business_intel.py --enable-sheets-export
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-intel-artifacts
+          path: artifacts/business_intel/
+
+      - name: Commit and push results (optional)
+        run: |
+          git config user.name &quot;IdinCode Bot&quot;
+          git config user.email &quot;bot@idincode.dev&quot;
+          git add artifacts/business_intel/ || true
+          git commit -m &quot;Business intel run: $(date)&quot; || true
+          git push || true
