@@ -8,3 +8,5 @@ reportlab>=4.1.0
 # Google Sheets push (opsional — di-import lazy, gak crash kalau gak ada)
 gspread>=6.1.0
 google-auth>=2.30.0
+#beautifulsoup4
+beautifulsoup4>=4.12.0
