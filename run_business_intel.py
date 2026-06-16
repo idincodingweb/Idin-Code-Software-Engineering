@@ -3,7 +3,15 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import sys
 from pathlib import Path
+
+# Load .env kalau ada (graceful, gak crash kalau gak ada)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from src.business_pipeline import BusinessIntelPipeline, BusinessPipelineConfig
 
@@ -12,55 +20,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run business-intelligence research for target brands."
     )
-    parser.add_argument(
-        "--targets",
-        default="targets.yaml",
-        help="Path to targets YAML file.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default="artifacts/business_intel",
-        help="Directory for CSV outputs.",
-    )
-    parser.add_argument(
-        "--enable-sheets-export",
-        action="store_true",
-        help="Export results to Google Sheets.",
-    )
-    parser.add_argument(
-        "--disable-sheets-export",
-        action="store_true",
-        help="Force-disable Google Sheets export even if env vars exist.",
-    )
-    parser.add_argument(
-        "--sheets-id",
-        default=os.getenv("GSHEET_SPREADSHEET_ID", ""),
-        help="Existing spreadsheet ID to update. If empty, a new one may be created.",
-    )
-    parser.add_argument(
-        "--sheet-title",
-        default="IdinCode Business Intelligence",
-        help="Spreadsheet title when creating a new Google Sheet.",
-    )
-    parser.add_argument(
-        "--max-concurrency",
-        type=int,
-        default=6,
-        help="Maximum concurrent target fetches.",
-    )
-    parser.add_argument(
-        "--timeout-seconds",
-        type=float,
-        default=20.0,
-        help="HTTP timeout for website fetches.",
-    )
+    parser.add_argument("--targets", default="targets.yaml")
+    parser.add_argument("--output-dir", default="artifacts/business_intel")
+    parser.add_argument("--enable-sheets-export", action="store_true")
+    parser.add_argument("--disable-sheets-export", action="store_true")
+    parser.add_argument("--sheets-id", default=os.getenv("GSHEET_SPREADSHEET_ID", ""))
+    parser.add_argument("--sheet-title", default="IdinCode Business Intelligence")
+    parser.add_argument("--max-concurrency", type=int, default=6)
+    parser.add_argument("--timeout-seconds", type=float, default=20.0)
     parser.add_argument(
         "--user-agent",
         default=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         ),
-        help="User-Agent for website requests.",
     )
     return parser
 
@@ -69,6 +42,11 @@ async def async_main() -> int:
     args = build_parser().parse_args()
     targets_path = Path(args.targets)
     output_dir = Path(args.output_dir)
+
+    if not targets_path.exists():
+        print(f"❌ ERROR: targets file not found: {targets_path}", file=sys.stderr)
+        print(f"   Current working dir: {Path.cwd()}", file=sys.stderr)
+        return 1
 
     enable_sheets_export = args.enable_sheets_export and not args.disable_sheets_export
 
@@ -82,8 +60,21 @@ async def async_main() -> int:
         sheets_id=args.sheets_id.strip() or None,
         sheet_title=args.sheet_title.strip(),
     )
+
+    print(f"🚀 Starting Business Intelligence Pipeline")
+    print(f"   Targets file: {targets_path}")
+    print(f"   Output dir:   {output_dir}")
+    print(f"   Sheets export: {enable_sheets_export}")
+    print()
+
     pipeline = BusinessIntelPipeline(config)
-    await pipeline.run()
+    try:
+        await pipeline.run()
+    except Exception as exc:
+        print(f"❌ Pipeline failed: {exc}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
     return 0
 
 
