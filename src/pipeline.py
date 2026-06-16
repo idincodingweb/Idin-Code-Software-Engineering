@@ -2,6 +2,7 @@
 """Main orchestrator: load -> enrich -> extras -> qualify -> analyst -> export -> pdf.
 
 Return summary dict yang dipakai run.py.
+BI enrichment sekarang tier-aware & marketplace-detecting.
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import time
 from typing import Any
 
 from src.analyst import enrich_with_ai_analyst
+from src.bi_enrich import enrich_business_intelligence
 from src.crm_webhooks import push_leads_to_crm
 from src.dedup_db import DedupDB
 from src.enrichers import enrich_all
@@ -44,7 +46,11 @@ async def run_pipeline(
     sheets_spreadsheet_id: str = "",
     sheets_spreadsheet_name: str = "",
 ) -> dict[str, Any]:
-    """Run full pipeline. Return summary dict untuk reporting di run.py."""
+    """Run full pipeline. Return summary dict untuk reporting di run.py.
+    
+    Tier-aware BI enrichment: tier 1 brands diperlakukan sebagai established,
+    marketplace signals di-deteksi untuk confidence boost.
+    """
     start_ts = time.perf_counter()
 
     print("=" * 60)
@@ -163,7 +169,48 @@ async def run_pipeline(
             "duration_seconds": duration,
         }
 
+    # ============================================================
+    # BUSINESS INTELLIGENCE ENRICHMENT (tier-aware, marketplace-aware)
+    # ============================================================
+    if enable_bi:
+        print(f"\n[pipeline] BI enrichment (tier-aware) untuk {len(reachable)} leads...")
+        for enrichment in reachable:
+            raw_html = getattr(enrichment, "raw_html", "") or ""
+            domain = getattr(enrichment, "domain", "")
+            tier = getattr(enrichment, "tier", None)
+            brand = getattr(enrichment, "brand", None)
+            
+            bi_data = enrich_business_intelligence(
+                html=raw_html,
+                domain=domain,
+                tier=tier,
+                brand=brand,
+            )
+            
+            # Copy all BI fields ke enrichment
+            setattr(enrichment, "employee_range", bi_data.get("employee_range", "unknown"))
+            setattr(enrichment, "location_count", bi_data.get("location_count", 0))
+            setattr(enrichment, "founded_year", bi_data.get("founded_year"))
+            setattr(enrichment, "years_in_business", bi_data.get("years_in_business"))
+            setattr(enrichment, "social_profiles", bi_data.get("social_profiles", []))
+            setattr(enrichment, "tech_signals", bi_data.get("tech_signals", []))
+            setattr(enrichment, "marketplaces", bi_data.get("marketplaces", []))
+            setattr(enrichment, "bi_score", bi_data.get("bi_score", 0))
+            setattr(enrichment, "firmographics_confidence", bi_data.get("firmographics_confidence", "low"))
+            setattr(enrichment, "firmographics_source", bi_data.get("firmographics_source", "free_enrichment"))
+            setattr(enrichment, "detection_notes", bi_data.get("detection_notes", ""))
+            
+            # Merge data_quality_flags dari pixel detection + bi enrich
+            existing_flags = getattr(enrichment, "data_quality_flags", []) or []
+            bi_flags = bi_data.get("data_quality_flags", [])
+            merged_flags = list(set(existing_flags + bi_flags))
+            setattr(enrichment, "data_quality_flags", merged_flags)
+
+    # ============================================================
+    # EXTRAS ENRICHMENT (emails, revenue, ads, competitors, etc)
+    # ============================================================
     if enable_extras:
+        print(f"\n[pipeline] Extras enrichment untuk {len(reachable)} leads...")
         base_htmls = {
             getattr(enrichment, "domain", ""): getattr(enrichment, "raw_html", "") or ""
             for enrichment in reachable
@@ -175,7 +222,7 @@ async def run_pipeline(
             enable_revenue=True,
             enable_ads=enable_ads,
             enable_competitors=enable_competitors,
-            enable_bi=enable_bi,
+            enable_bi=False,  # BI sudah dikerjain di atas, jangan ulang
             enable_email_verify=enable_email_verify,
             email_verify_use_providers=email_verify_use_providers,
         )
