@@ -1,22 +1,23 @@
 metadata:
-  industry_label: "growth-stage businesses"
-  typical_ticket: "$1,000-$10,000 per customer or retainer equivalent"
-  pain_point: "marketing attribution, conversion friction, and revenue capture gaps"
+  industry_label: "brand growth-stage Indonesia"
+  typical_ticket: "Rp 5juta - Rp 50juta per project, atau retainer bulanan"
+  pain_point: "atribusi marketing, friksi konversi, dan revenue capture yang bocor"
 
 analyst:
   focus: >
-    Focus on concrete sales opportunities visible from tracking setup, site performance,
-    contactability, and business maturity signals. Prioritize issues an agency can fix quickly.
+    Fokus pada peluang bisnis nyata yang terlihat dari setup tracking, performa website,
+    kontaktabilitas, dan sinyal kematangan bisnis. Prioritaskan masalah yang bisa
+    diperbaiki cepat oleh tim internal brand atau partner technical mereka.
   mature_business_note: >
-    If the business already looks operationally mature, reduce urgency and say limited opportunity
-    unless there is a clear scale, retention, or attribution gap.
+    Kalau brand sudah terlihat operasional matang (multi-lokasi, social aktif, tech stack lengkap),
+    kurangi urgensi dan sebut peluang terbatas — kecuali ada gap scale, retensi, atau atribusi yang jelas.
 
   fallback_reasons_rules:
     - conditions:
         - field: pixel_confidence
           op: eq
           value: "low"
-      template: "Tracking visibility is low-confidence because static HTML scanning may miss JavaScript-loaded tags."
+      template: "Visibility tracking masih low-confidence karena scan HTML statis bisa miss tag yang di-load via JavaScript — perlu validasi lanjutan sebelum klaim definitive."
 
     - conditions:
         - field: missing_tracking_count
@@ -25,7 +26,7 @@ analyst:
         - field: pixel_confidence
           op: in
           value: ["high", "medium"]
-      template: "Missing {missing_tracking_count} key tracking signals ({missing_tracking_items}) - major attribution and retargeting gap."
+      template: "Terdeteksi {missing_tracking_count} sinyal tracking utama hilang ({missing_tracking_items}) — gap atribusi & retargeting yang signifikan."
 
     - conditions:
         - field: missing_tracking_count
@@ -37,13 +38,13 @@ analyst:
         - field: pixel_confidence
           op: in
           value: ["high", "medium"]
-      template: "Missing {missing_tracking_items} - incomplete attribution stack."
+      template: "Tracking belum lengkap — {missing_tracking_items} tidak terdeteksi di HTML, stack atribusi masih partial."
 
     - conditions:
         - field: pagespeed_score
           op: lt
           value: 50
-      template: "Mobile PageSpeed {pagespeed_score}/100 - high bounce risk on paid and organic traffic."
+      template: "PageSpeed mobile {pagespeed_score}/100 — risiko bounce tinggi pada traffic paid dan organik."
 
     - conditions:
         - field: pagespeed_score
@@ -52,25 +53,25 @@ analyst:
         - field: pagespeed_score
           op: lt
           value: 70
-      template: "Mobile PageSpeed {pagespeed_score}/100 - room for conversion uplift."
+      template: "PageSpeed mobile {pagespeed_score}/100 — masih ada ruang signifikan untuk uplift konversi via optimasi performa."
 
     - conditions:
         - field: response_ms
           op: gt
           value: 3000
-      template: "Server response time {response_ms}ms - signals infrastructure or hosting drag."
+      template: "Server response time {response_ms}ms — indikasi drag infrastruktur atau hosting yang menahan konversi."
 
     - conditions:
         - field: platform
           op: in
           value: ["wordpress", "woocommerce"]
-      template: "WordPress stack - easy to onboard for tracking and speed fixes."
+      template: "Stack WordPress/WooCommerce — relatif mudah di-onboard untuk fix tracking dan speed."
 
     - conditions:
         - field: firmographics_confidence
           op: eq
           value: "low"
-      template: "Company size and revenue signals are estimated from public web data and should be treated as directional."
+      template: "Sinyal ukuran perusahaan & revenue diestimasi dari data publik dan harus diperlakukan sebagai indikatif, bukan definitive."
 
   fallback_outreach_rules:
     - priority: 1
@@ -81,28 +82,28 @@ analyst:
         - field: pixel_confidence
           op: in
           value: ["high", "medium"]
-      template: "Subject: Found {missing_tracking_count} tracking gaps on {brand}'s site - worth a quick chat?"
+      template: "Subject: Saya menemukan {missing_tracking_count} gap tracking di website {brand} — bisa diskusi singkat?"
 
     - priority: 2
       conditions:
         - field: pagespeed_score
           op: lt
           value: 50
-      template: "Subject: {brand}'s mobile site loads at {pagespeed_score}/100 - here's what it may be costing you"
+      template: "Subject: Website {brand} loading di {pagespeed_score}/100 mobile — ini estimasi cost-nya"
 
     - priority: 3
       conditions:
         - field: response_ms
           op: gt
           value: 3000
-      template: "Subject: Quick note about {brand}'s site speed (I think you're losing conversions)"
+      template: "Subject: Catatan singkat soal speed website {brand} (kemungkinan ada konversi yang hilang)"
 
     - priority: 4
       conditions:
         - field: pixel_confidence
           op: eq
           value: "low"
-      template: "Subject: I spotted a few possible funnel blind spots on {brand}'s site - worth validating?"
+      template: "Subject: Saya temukan beberapa blind spot funnel di website {brand} — worth divalidasi?"
 
 quality_score:
   base: 55
@@ -172,6 +173,18 @@ quality_score:
           op: gte
           value: 30
       points: 1
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 1
+      points: 6
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 2
+      points: 3
 
 qualifier:
   weights:
