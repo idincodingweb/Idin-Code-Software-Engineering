@@ -145,3 +145,104 @@ targets:
     category: skincare
     tier: startup
     location: Indonesia
+
+    # ============================================================
+# NICHE: SKINCARE / BEAUTY INDONESIA
+# BATCH 2 (NO DUPLICATE DENGAN BATCH SEBELUMNYA)
+# ============================================================
+
+  - domain: summitglow.co.id
+    brand: Summit Glow
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Outdoor-specialized skincare, masih tahap waitlist dan pre-launch" # :contentReference[oaicite:0]{index=0}
+
+  - domain: skinaface.com
+    brand: Skinaface
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Brand skincare lokal didirikan tahun 2025" # :contentReference[oaicite:1]{index=1}
+
+  - domain: hale.co.id
+    brand: Hale
+    niche: skincare_beauty
+    category: skincare
+    tier: early_growth
+    location: Indonesia
+    notes: "Indie skincare brand, growth stage"
+
+  - domain: duvaderm.com
+    brand: Duvaderm
+    niche: skincare_beauty
+    category: skincare
+    tier: early_growth
+    location: Indonesia
+    notes: "Molecular skincare brand"
+
+  - domain: byebadskin.com
+    brand: Bye Bad Skin
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Acne-focused skincare brand"
+
+  - domain: yunaandco.com
+    brand: Yuna & Co
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Emerging skincare brand"
+
+  - domain: dewit.id
+    brand: Dew It
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Indie skincare startup"
+
+  - domain: callie.id
+    brand: Callie
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Local beauty startup"
+
+  - domain: nemaofficial.com
+    brand: Nema
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Small skincare brand"
+
+  - domain: noolab.id
+    brand: Noolab
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Emerging skincare startup"
+
+  - domain: rnbglow.com
+    brand: RNB Glow
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Skincare & bodycare lokal, direct-to-consumer" # :contentReference[oaicite:2]{index=2}
+
+  - domain: vidaderm.com
+    brand: Vidaderm
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Science-backed clinical skincare brand" # :contentReference[oaicite:3]{index=3}
