@@ -3,11 +3,16 @@ name: Apex Business Intelligence | By Idincode
 on:
   workflow_dispatch:
   schedule:
-    - cron: &apos;17 2 * * 1&apos;
+    - cron: '17 2 * * 1'
+
+permissions:
+  contents: read
 
 jobs:
   run-business-intel:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -15,12 +20,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: &apos;3.11&apos;
+          python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Verify file structure
+        run: |
+          echo "=== Working dir ==="
+          pwd
+          echo "=== Root files ==="
+          ls -la
+          echo "=== src/ files ==="
+          ls -la src/ || echo "src/ not found"
+          echo "=== targets.yaml head ==="
+          head -30 targets.yaml || echo "targets.yaml not found"
 
       - name: Run business intelligence pipeline
         env:
@@ -29,18 +46,24 @@ jobs:
           BUSINESS_INTEL_AD_API_URL: ${{ secrets.BUSINESS_INTEL_AD_API_URL }}
           BUSINESS_INTEL_AD_API_KEY: ${{ secrets.BUSINESS_INTEL_AD_API_KEY }}
         run: |
-          python run_business_intel.py --enable-sheets-export
+          if [ -n "$GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT" ]; then
+            python run_business_intel.py --enable-sheets-export
+          else
+            echo "ℹ️  GOOGLE_SERVICE_ACCOUNT_JSON_CONTENT not set, running without Sheets export"
+            python run_business_intel.py
+          fi
+
+      - name: List output files
+        if: always()
+        run: |
+          echo "=== Output files ==="
+          ls -la artifacts/business_intel/ || echo "No outputs generated"
 
       - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: business-intel-artifacts
           path: artifacts/business_intel/
-
-      - name: Commit and push results (optional)
-        run: |
-          git config user.name &quot;IdinCode Bot&quot;
-          git config user.email &quot;bot@idincode.dev&quot;
-          git add artifacts/business_intel/ || true
-          git commit -m &quot;Business intel run: $(date)&quot; || true
-          git push || true
+          if-no-files-found: warn
+          retention-days: 30
