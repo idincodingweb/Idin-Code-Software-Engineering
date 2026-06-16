@@ -25,12 +25,18 @@ class BusinessIntelLead:
     niche: str = ""
     category: str = ""
     notes: str = ""
+
+    # Scoring utama
     business_score: int = 0
     business_priority: str = "starter"
     data_confidence: str = "low"
+
+    # Fetch info
     fetch_status: str = "unknown"
     final_url: str = ""
     website_status_code: int = 0
+
+    # Marketplace
     marketplace_presence: str = "tidak diketahui"
     marketplace_count: int = 0
     marketplaces: str = ""
@@ -40,24 +46,55 @@ class BusinessIntelLead:
     lazada_link_found: str = "tidak"
     blibli_link_found: str = "tidak"
     zalora_link_found: str = "tidak"
-    checkout_detected: str = "tidak"
+
+    # Cart layer (add-to-cart / add-to-bag / add-to-basket)
     cart_detected: str = "tidak"
+    cart_confidence: str = "low"
+    cart_signals: str = ""
+    cart_button_variant: str = ""
+
+    # Checkout layer (REAL checkout funnel di domain sendiri)
+    checkout_detected: str = "tidak"
+    checkout_confidence: str = "low"
+    checkout_signals: str = ""
+    checkout_type: str = "unknown"
+
+    # Payment
     payment_options_detected: str = "tidak"
     payment_methods: str = ""
+    payment_methods_count: int = 0
+
+    # Promo
     promo_code_box_detected: str = "tidak"
     voucher_signal_detected: str = "tidak"
+
+    # WhatsApp checkout
     whatsapp_checkout_signal: str = "tidak"
+    whatsapp_checkout_confidence: str = "low"
+
+    # Funnel
     funnel_health_score: int = 0
     funnel_gaps: str = ""
+
+    # DTC Maturity & Marketplace Dependency (NEW)
+    dtc_maturity_score: int = 0
+    dtc_maturity_level: str = "minimal"
+    marketplace_dependency_score: int = 0
+    marketplace_dependency_level: str = "low"
+
+    # Competitor
     competitor_1: str = ""
     competitor_2: str = ""
     competitor_3: str = ""
     competitor_set: str = ""
+
+    # Narrative
     business_opportunities: str = ""
     outreach_angle: str = ""
     executive_summary: str = ""
     detection_notes: str = ""
     data_quality_flags: str = ""
+
     raw_signals: dict = field(default_factory=dict, repr=False)
 
     def to_row(self):
