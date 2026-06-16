@@ -1,5 +1,45 @@
 targets:
 
+  - domain: ecoskinnatural.com
+    brand: Ecoskin Natural
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Research-based skincare, mulai komersialisasi 2023"
+
+  - domain: algaemyskincare.com
+    brand: Algaemy Skincare
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Didirikan 2023, skincare berbasis rumput laut Nusa Lembongan"
+
+  - domain: summitglow.co.id
+    brand: Summit Glow
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Outdoor-specialized skincare, masih fase early launch/waitlist"
+
+  - domain: skinterra.co.id
+    brand: Skinterra
+    niche: skincare_beauty
+    category: skincare
+    tier: early_growth
+    location: Indonesia
+    notes: "Skincare khusus kulit tropis Indonesia"
+
+  - domain: mclab.co.id
+    brand: MC+ LAB
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+    notes: "Basic skincare natural ingredients"
+
   - domain: lotase.com
     brand: Lotase
     niche: skincare_beauty
@@ -7,43 +47,8 @@ targets:
     tier: startup
     location: Indonesia
 
-  - domain: skinterra.co.id
-    brand: Skinterra
-    niche: skincare_beauty
-    category: skincare
-    tier: startup
-    location: Indonesia
-
-  - domain: everloveskincare.com
-    brand: Everlove
-    niche: skincare_beauty
-    category: skincare
-    tier: growth
-    location: Indonesia
-
-  - domain: ldhies.co.id
-    brand: L.Dhies
-    niche: skincare_beauty
-    category: skincare
-    tier: startup
-    location: Indonesia
-
-  - domain: vincyglow.com
-    brand: Vincy Glow
-    niche: skincare_beauty
-    category: skincare
-    tier: startup
-    location: Indonesia
-
-  - domain: glafidsya.co.id
-    brand: Glafidsya
-    niche: skincare_beauty
-    category: skincare
-    tier: growth
-    location: Indonesia
-
-  - domain: miels.id
-    brand: Miels
+  - domain: aquilaskinbeauty.id
+    brand: Aquila Skin Beauty
     niche: skincare_beauty
     category: skincare
     tier: startup
@@ -56,16 +61,87 @@ targets:
     tier: startup
     location: Indonesia
 
-  - domain: bromen.id
-    brand: Bromen
-    niche: skincare_beauty
-    category: mens_skincare
-    tier: growth
-    location: Indonesia
-
-  - domain: drwskincare.com
-    brand: DRW Skincare
+  - domain: miels.id
+    brand: Miels
     niche: skincare_beauty
     category: skincare
-    tier: growth
+    tier: startup
+    location: Indonesia
+
+  - domain: vincyglow.com
+    brand: Vincy Glow
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: ldhies.co.id
+    brand: L.Dhies
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: duvaderm.com
+    brand: Duvaderm
+    niche: skincare_beauty
+    category: skincare
+    tier: early_growth
+    location: Indonesia
+    notes: "Molecular skincare lokal"
+
+  - domain: elformula.id
+    brand: Elformula
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: hale.co.id
+    brand: Hale
+    niche: skincare_beauty
+    category: skincare
+    tier: early_growth
+    location: Indonesia
+
+  - domain: byebadskin.com
+    brand: Bye Bad Skin
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: yunaandco.com
+    brand: Yuna & Co
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: dewit.id
+    brand: Dew It
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: callie.id
+    brand: Callie
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: nemaofficial.com
+    brand: Nema
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: noolab.id
+    brand: Noolab
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
     location: Indonesia
