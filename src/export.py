@@ -1,5 +1,8 @@
 # src/export.py
-"""Export qualified leads ke CSV bertingkat (Starter / Pro / Premium Gold)."""
+"""Export qualified leads ke CSV bertingkat (Starter / Pro / Premium Gold).
+
+Output: kolom CSV header English (standardisasi), tapi value content bisa Bahasa Indonesia.
+"""
 from __future__ import annotations
 
 import csv
@@ -52,6 +55,7 @@ _CSV_COLUMNS = [
     "founded_year",
     "social_profiles",
     "tech_signals",
+    "marketplaces",
     "gold_reasons",
     "outreach_angle",
     "bi_summary",
@@ -151,6 +155,7 @@ def _write_csv(path: Path, leads: list[QualifiedLead]) -> None:
                 getattr(lead, "founded_year", "") if getattr(lead, "founded_year", None) is not None else "",
                 _join(getattr(lead, "social_profiles", [])),
                 _join(getattr(lead, "tech_signals", [])),
+                _join(getattr(lead, "marketplaces", [])),
                 lead.gold_reasons or "",
                 lead.outreach_angle or "",
                 getattr(lead, "bi_summary", "") or "",
@@ -158,15 +163,15 @@ def _write_csv(path: Path, leads: list[QualifiedLead]) -> None:
 
 
 def _yn(value: bool) -> str:
-    return "yes" if value else "no"
+    return "ya" if value else "tidak"
 
 
 def _bool_label(value) -> str:
     if value is True:
-        return "yes"
+        return "ya"
     if value is False:
-        return "no"
-    return "unknown"
+        return "tidak"
+    return "belum diketahui"
 
 
 def _mx_label(value) -> str:
@@ -174,7 +179,7 @@ def _mx_label(value) -> str:
         return "valid"
     if value is False:
         return "invalid"
-    return "unknown"
+    return "belum diketahui"
 
 
 def _join(items) -> str:
