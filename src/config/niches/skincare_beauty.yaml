@@ -1,0 +1,218 @@
+metadata:
+  industry_label: "brand skincare & beauty Indonesia"
+  typical_ticket: "Rp 10juta - Rp 150juta per project audit, atau retainer Rp 5-20juta/bulan"
+  pain_point: "atribusi multi-marketplace (Shopee/TikTok Shop), retensi customer untuk repeat-purchase, dan funnel edukasi produk yang panjang"
+
+analyst:
+  focus: >
+    Brand skincare Indonesia dominan jual via Shopee (#1) dan TikTok Shop (rising fast).
+    Fokus ke: konsolidasi data customer cross-channel, edukasi produk via konten,
+    retargeting first-time buyer ke repeat-purchase (LTV play), dan personalisasi rekomendasi.
+    Mayoritas brand skincare top punya budget iklan miliaran/bulan dan tim performance marketing besar.
+  mature_business_note: >
+    Brand tier 1 (Skintific, Somethinc, MS Glow, Wardah, Scarlett) sudah pasti punya stack tracking
+    enterprise-level dan tim data sendiri. Jangan undersell. Fokus rekomendasi ke: advanced attribution
+    modeling, customer data platform consolidation, dan retention/LTV optimization.
+    Brand tier 2-3 lebih cocok untuk acquisition foundational dan tracking standardization.
+
+  fallback_reasons_rules:
+    - conditions:
+        - field: tier
+          op: eq
+          value: 1
+      template: "Brand skincare tier 1 nasional — pasti aktif iklan Meta/TikTok/Google dengan budget miliaran/bulan. Peluang utama: advanced attribution cross-marketplace (Shopee + TikTok Shop + Tokopedia + website) dan retention/LTV play."
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 2
+      template: "Brand skincare tier 2 sedang scaling pesat di Shopee & TikTok Shop — momentum bagus untuk consolidate tracking foundational dan kickstart sistematis retargeting + email/WhatsApp automation."
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 3
+      template: "Brand skincare emerging/multinasional — peluang foundational: setup tracking lengkap, basic retargeting, dan content funnel untuk product education."
+
+    - conditions:
+        - field: pixel_confidence
+          op: eq
+          value: "low"
+      template: "Tracking belum terverifikasi penuh — scan HTML statis bisa miss pixel yang di-load async via GTM/Shopify. Untuk brand skincare sekelas ini, hampir pasti pixel-nya terpasang tapi perlu konfirmasi via browser inspection."
+
+    - conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 3
+        - field: pixel_confidence
+          op: in
+          value: ["high", "medium"]
+      template: "Stack tracking hilang {missing_tracking_count} sinyal ({missing_tracking_items}) — skincare punya purchase cycle panjang & repeat-buy yang tinggi, gap tracking di sini langsung bocor LTV optimization."
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 40
+      template: "PageSpeed mobile {pagespeed_score}/100 sangat rendah — skincare shopper Indonesia heavy mobile, dan konten edukasi produk (gambar, video, ingredient detail) berat — bounce pasti tinggi."
+
+    - conditions:
+        - field: pagespeed_score
+          op: gte
+          value: 40
+        - field: pagespeed_score
+          op: lt
+          value: 70
+      template: "PageSpeed mobile {pagespeed_score}/100 — masih ada uplift konversi yang signifikan dari optimasi image-heavy product page."
+
+    - conditions:
+        - field: platform
+          op: eq
+          value: "shopify"
+      template: "Stack Shopify — relatif standar untuk skincare, tapi sering ada custom apps (reviews, subscription, bundle) yang break event tracking."
+
+    - conditions:
+        - field: social_profiles_count
+          op: gte
+          value: 4
+      template: "Social presence luas ({social_profiles_count} platform) — skincare brand butuh konsisten edukasi produk across-channel, attribution di sini sering bocor."
+
+    - conditions:
+        - field: firmographics_confidence
+          op: eq
+          value: "low"
+      template: "Estimasi ukuran perusahaan dari scan publik kemungkinan understated — brand skincare top Indonesia biasanya punya tim 100-1000 orang termasuk R&D, warehouse, distribusi, dan tim marketing internal."
+
+  fallback_outreach_rules:
+    - priority: 1
+      conditions:
+        - field: tier
+          op: eq
+          value: 1
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Subject: Audit singkat: website {brand} loading {pagespeed_score}/100 mobile — estimasi impact ke ROAS Meta/TikTok ads"
+
+    - priority: 2
+      conditions:
+        - field: tier
+          op: eq
+          value: 1
+      template: "Subject: Insight singkat soal attribution & retention {brand} (Shopee + TikTok Shop + website)"
+
+    - priority: 3
+      conditions:
+        - field: missing_tracking_count
+          op: gte
+          value: 2
+        - field: pixel_confidence
+          op: in
+          value: ["high", "medium"]
+      template: "Subject: {brand} — beberapa gap tracking yang impact retargeting & LTV play"
+
+    - priority: 4
+      conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 50
+      template: "Subject: Website {brand} loading {pagespeed_score}/100 mobile — perkiraan cost-nya untuk skincare shopper"
+
+    - priority: 5
+      conditions:
+        - field: pixel_confidence
+          op: eq
+          value: "low"
+      template: "Subject: Beberapa observasi tracking & UX website {brand} — bisa divalidasi singkat?"
+
+quality_score:
+  base: 60
+  rules:
+    - conditions:
+        - field: tier
+          op: eq
+          value: 1
+      points: 12
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 2
+      points: 7
+
+    - conditions:
+        - field: tier
+          op: eq
+          value: 3
+      points: 3
+
+    - conditions:
+        - field: weighted_missing_tracking_count
+          op: gte
+          value: 3
+      points: 10
+
+    - conditions:
+        - field: weighted_missing_tracking_count
+          op: eq
+          value: 0
+      points: -8
+
+    - conditions:
+        - field: pagespeed_score
+          op: lt
+          value: 40
+      points: 10
+
+    - conditions:
+        - field: pagespeed_score
+          op: gte
+          value: 40
+        - field: pagespeed_score
+          op: lt
+          value: 70
+      points: 5
+
+    - conditions:
+        - field: emails_found_count
+          op: gte
+          value: 1
+      points: 6
+
+    - conditions:
+        - field: mx_valid
+          op: eq
+          value: true
+      points: 4
+
+    - conditions:
+        - field: platform
+          op: in
+          value: ["shopify", "woocommerce"]
+      points: 4
+
+    - conditions:
+        - field: social_profiles_count
+          op: gte
+          value: 4
+      points: 5
+
+    - conditions:
+        - field: social_profiles_count
+          op: gte
+          value: 2
+      points: 2
+
+    - conditions:
+        - field: bi_score
+          op: gte
+          value: 30
+      points: 2
+
+qualifier:
+  weights:
+    pixels: 0.35
+    pagespeed: 0.35
+    lcp: 0.15
+    platform: 0.15
+  response_penalty_threshold_ms: 2000
+  response_penalty_factor: 0.15
