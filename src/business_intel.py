@@ -125,12 +125,9 @@ class EnvJsonAdIntelProvider(AdIntelProvider):
     name = "env_json_endpoint"
 
     def __init__(self, timeout_seconds: float, user_agent: str):
-        self.api_url = (httpx.URL("https://example.invalid") if False else None)
-        self.endpoint = ""
+        import os
         self.timeout_seconds = timeout_seconds
         self.user_agent = user_agent
-        import os
-
         self.endpoint = os.getenv("BUSINESS_INTEL_AD_API_URL", "").strip()
         self.api_key = os.getenv("BUSINESS_INTEL_AD_API_KEY", "").strip()
 
@@ -160,7 +157,7 @@ class EnvJsonAdIntelProvider(AdIntelProvider):
                 response = await client.post(self.endpoint, json=payload)
                 response.raise_for_status()
                 data = response.json()
-            except (httpx.HTTPError, json.JSONDecodeError):
+            except (httpx.HTTPError, json.JSONDecodeError, ValueError):
                 return {
                     "provider": self.name,
                     "meta_ads_count": 0,
