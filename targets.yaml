@@ -1,119 +1,71 @@
 targets:
-  # ============================================================
-  # NICHE: SKINCARE / BEAUTY INDONESIA
-  # ============================================================
 
-  # TIER 1 — Market Leader, Budget Iklan Gede Banget
-  - domain: skintific.id
-    brand: Skintific
+  - domain: lotase.com
+    brand: Lotase
     niche: skincare_beauty
     category: skincare
-    tier: 1
+    tier: startup
     location: Indonesia
-    notes: "Market leader Shopee (7-9% share), serum & moisturizer terlaris"
 
-  - domain: somethinc.com
-    brand: Somethinc
-    niche: skincare_beauty
-    category: skincare_makeup
-    tier: 1
-    location: Indonesia
-    notes: "Skincare lokal top, penjualan Rp53M+, aktif Meta & TikTok ads"
-
-  - domain: msglowid.com
-    brand: MS Glow
-    niche: skincare_beauty
-    category: skincare_kosmetik
-    tier: 1
-    location: Indonesia (Malang)
-    notes: "Top 5 nasional, legacy brand skincare, budget iklan gede"
-
-  - domain: wardahbeauty.com
-    brand: Wardah
-    niche: skincare_beauty
-    category: beauty_halal
-    tier: 1
-    location: Indonesia (Jakarta)
-    notes: "Pionir skincare halal Indonesia, brand legacy terbesar"
-
-  - domain: scarlettofficial.id
-    brand: Scarlett
-    niche: skincare_beauty
-    category: skincare_bodycare
-    tier: 1
-    location: Indonesia
-    notes: "Brand skincare & body care paling dicintai, endorser artis"
-
-  # TIER 2 — Brand Kuat, Lagi Naik Daun
-  - domain: glad2glow.com
-    brand: Glad2Glow
+  - domain: skinterra.co.id
+    brand: Skinterra
     niche: skincare_beauty
     category: skincare
-    tier: 2
+    tier: startup
     location: Indonesia
-    notes: "Top 3 Shopee Q1 2025, pertumbuhan cepat, aktif e-commerce"
 
-  - domain: azarinecosmetic.com
-    brand: Azarine
-    niche: skincare_beauty
-    category: skincare_sunscreen
-    tier: 2
-    location: Indonesia
-    notes: "Market leader sunscreen (9.4% share), natural & herbal"
-
-  - domain: avoskinbeauty.com
-    brand: Avoskin
-    niche: skincare_beauty
-    category: sustainable_beauty
-    tier: 2
-    location: Indonesia
-    notes: "Sustainable beauty, brand kuat di skincare treatment"
-
-  - domain: hanasui.id
-    brand: Hanasui
+  - domain: everloveskincare.com
+    brand: Everlove
     niche: skincare_beauty
     category: skincare
-    tier: 2
+    tier: growth
     location: Indonesia
-    notes: "Top 5 Shopee, distribusi luas (offline & online)"
 
-  - domain: theoriginote.com
-    brand: The Originote
-    niche: skincare_beauty
-    category: skincare_affordable
-    tier: 2
-    location: Indonesia
-    notes: "Affordable skincare booming, lagi naik daun di TikTok Shop"
-
-  - domain: whitelab.co.id
-    brand: Whitelab
-    niche: skincare_beauty
-    category: skincare_treatment
-    tier: 2
-    location: Indonesia
-    notes: "Skincare treatment, emerging brand, aktif iklan"
-
-  # TIER 3 — Emerging / Multinasional
-  - domain: dearmebeauty.com
-    brand: Dear Me Beauty
-    niche: skincare_beauty
-    category: beauty
-    tier: 3
-    location: Indonesia
-    notes: "Beauty brand, website sendiri, emerging"
-
-  - domain: gloglowingskincare.com
-    brand: Gloglowing
+  - domain: ldhies.co.id
+    brand: L.Dhies
     niche: skincare_beauty
     category: skincare
-    tier: 3
+    tier: startup
     location: Indonesia
-    notes: "Skincare emerging, aktif di Shopee & TikTok Shop"
 
-  - domain: garnier.co.id
-    brand: Garnier
+  - domain: vincyglow.com
+    brand: Vincy Glow
     niche: skincare_beauty
-    category: skincare_multinasional
-    tier: 3
+    category: skincare
+    tier: startup
     location: Indonesia
-    notes: "L'Oreal group, budget iklan multinasional, skincare #1 di Indo"
+
+  - domain: glafidsya.co.id
+    brand: Glafidsya
+    niche: skincare_beauty
+    category: skincare
+    tier: growth
+    location: Indonesia
+
+  - domain: miels.id
+    brand: Miels
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: lataskin.com
+    brand: Lataskin
+    niche: skincare_beauty
+    category: skincare
+    tier: startup
+    location: Indonesia
+
+  - domain: bromen.id
+    brand: Bromen
+    niche: skincare_beauty
+    category: mens_skincare
+    tier: growth
+    location: Indonesia
+
+  - domain: drwskincare.com
+    brand: DRW Skincare
+    niche: skincare_beauty
+    category: skincare
+    tier: growth
+    location: Indonesia
