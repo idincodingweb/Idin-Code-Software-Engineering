@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
-@dataclass(slots=True)
+@dataclass
 class BusinessIntelTarget:
     domain: str
     brand: str = ""
@@ -15,7 +15,7 @@ class BusinessIntelTarget:
     notes: str = ""
 
 
-@dataclass(slots=True)
+@dataclass
 class BusinessIntelLead:
     rank: int = 0
     domain: str = ""
@@ -49,11 +49,6 @@ class BusinessIntelLead:
     whatsapp_checkout_signal: str = "tidak"
     funnel_health_score: int = 0
     funnel_gaps: str = ""
-    ad_provider: str = "none"
-    meta_ads_count: int = 0
-    tiktok_ads_count: int = 0
-    ad_dominance_score: int = 0
-    ad_intel_confidence: str = "low"
     competitor_1: str = ""
     competitor_2: str = ""
     competitor_3: str = ""
@@ -63,9 +58,9 @@ class BusinessIntelLead:
     executive_summary: str = ""
     detection_notes: str = ""
     data_quality_flags: str = ""
-    raw_signals: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw_signals: dict = field(default_factory=dict, repr=False)
 
-    def to_row(self) -> dict[str, Any]:
+    def to_row(self):
         row = asdict(self)
         row.pop("raw_signals", None)
         return row
